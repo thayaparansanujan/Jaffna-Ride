@@ -48,11 +48,11 @@ button{border:0;border-radius:10px;padding:12px 14px;font-weight:bold;cursor:poi
 <option value="driver">Driver</option>
 <option value="admin">Admin</option>
 </select></div>
-<div id="loginUserWrap"><label>Username</label><input id="loginUser" placeholder="Username"></div>
+<div id="loginUserWrap"><label id="loginUserLabel">Phone Number</label><input id="loginUser" placeholder="Phone number"></div>
 <div id="loginPassWrap"><label>Password</label><input id="loginPass" type="password" placeholder="Password"></div>
 </div>
-<button class="primary" id="loginBtn">Login</button>
-<p class="muted" id="loginHint">Customer: Login to book a ride · Driver/Admin: username + password</p>
+<div class="rowActions"><button class="primary" id="loginBtn">Login</button><button class="secondary" id="registerBtn" type="button">Register</button></div>
+<p class="muted" id="loginHint">Customer: phone number + password · Driver/Admin: username + password</p>
 </div>
 
 <div class="card" id="dashboard" style="display:none">
@@ -85,8 +85,18 @@ button{border:0;border-radius:10px;padding:12px 14px;font-weight:bold;cursor:poi
 </div>
 <div class="card bookBar" id="bookActions"><button id="bookBtn" class="primary bookCta">Book Now <span>→</span></button><small>Booking request will be sent to Admin for confirmation.</small></div>
 
-<div class="card" id="recordsCard"><h2>My / Booking Records</h2><div id="records"></div></div>
+<div class="card" id="recordsCard"><div class="sectionTitle"><h2 style="margin:0">My Booking Records</h2><label style="display:flex;align-items:center;gap:8px;font-size:12px">Date <input id="customerDateFilter" type="date" style="margin:0;width:auto"></label></div><p class="muted" style="margin-top:0">All customer bookings for the selected date are shown below.</p><div id="records"></div></div>
 </main>
+
+<div id="registerModal" class="modal"><div class="modalBox">
+<div class="modalHead"><h2>Customer Registration</h2><button class="close" onclick="closeRegister()">✕</button></div>
+<label>Customer Name</label><input id="regName" placeholder="Your name">
+<label>Phone Number</label><input id="regPhone" placeholder="0771234567">
+<label>Password</label><input id="regPassword" type="password" placeholder="Password">
+<label>Confirm Password</label><input id="regPassword2" type="password" placeholder="Confirm password">
+<button class="primary" onclick="registerCustomer()">Create Account</button>
+<p class="muted">Already registered? Close this and login with your phone + password.</p>
+</div></div>
 
 <div id="driverModal" class="modal"><div class="modalBox">
 <div class="modalHead"><h2 id="driverModalTitle">Create Driver</h2><button class="close" onclick="closeDriverModal()">✕</button></div>
@@ -154,7 +164,7 @@ function info(x,adminMode=false){
    if(!['cancelled','rejected'].includes(x.status))html+='<button class="secondary small" onclick="openPayment('+x.id+')">Add Payment</button>';
    html+='<button class="danger small" onclick="cancelBooking('+x.id+')">Cancel Booking</button>';
  }
- if(currentUser?.role==='customer'&&x.status!=='completed'&&x.status!=='cancelled'&&x.status!=='rejected')html+='<button class="danger small" onclick="customerCancel('+x.id+')">Cancel My Booking</button>';
+ if(currentUser?.role==='customer' && customerBookings().some(m=>String(m.id)===String(x.id)) && x.status!=='completed'&&x.status!=='cancelled'&&x.status!=='rejected')html+='<button class="danger small" onclick="customerCancel('+x.id+')">Cancel My Booking</button>';
  html+='</div>';return html;
 }
 function valid(){
@@ -164,7 +174,7 @@ function valid(){
 }
 function book(){
  if(!valid())return;let v=getVehicle($('vehicleSelect').value),fare=Number(v.fare||0),arrival=calcArrival($('time').value,v.travelHours);
- B.push({id:Date.now(),route:$('route').value,date:$('date').value,time:$('time').value,arrival,name:$('name').value.trim(),phone:$('phone').value.trim(),passengers:Number($('pass').value),vehicleId:v.id,vehicleName:v.name,fare,travelHours:Number(v.travelHours),paid:0,status:'pending',driverId:null,createdAt:new Date().toISOString()});
+ B.push({id:Date.now(),customerId:currentUser?.customerId||null,route:$('route').value,date:$('date').value,time:$('time').value,arrival,name:$('name').value.trim(),phone:$('phone').value.trim(),passengers:Number($('pass').value),vehicleId:v.id,vehicleName:v.name,fare,travelHours:Number(v.travelHours),paid:0,status:'pending',driverId:null,createdAt:new Date().toISOString()});
  save();alert('Booking request sent to Admin.')
 }
 function updateVehicleOptions(){let old=$('vehicleSelect').value,all=[];DRIVERS.forEach(d=>(d.vehicles||[]).forEach(v=>all.push({d,v})));
@@ -177,9 +187,26 @@ function updatePassengerOptions(){let v=getVehicle($('vehicleSelect').value),max
 function previewArrival(){let v=getVehicle($('vehicleSelect').value);$('farePreview').textContent='Rs. '+Number(v?.fare||0).toLocaleString();$('arrivalPreview').textContent=v?calcArrival($('time').value,v.travelHours)||'—':'—'}
 $('vehicleSelect').addEventListener('change',updatePassengerOptions);$('time').addEventListener('input',previewArrival);$('bookBtn').addEventListener('click',book);$('route').addEventListener('change',()=>{let back=$('route').value==='back';$('pickupLabel').textContent=back?'Bandaranaike Airport':'Jaffna';$('dropLabel').textContent=back?'Jaffna':'Bandaranaike Airport';});
 
+function customerBookings(){
+ if(currentUser?.role!=='customer') return [];
+ const filterDate=$('customerDateFilter')?.value||'';
+ const cid=String(currentUser.customerId||'');
+ return B.filter(x=>{
+   const sameCustomer=(cid && String(x.customerId||'')===cid) ||
+     (!x.customerId && String(x.phone||'').trim()===String(currentUser.phone||'').trim());
+   return sameCustomer && (!filterDate || x.date===filterDate);
+ }).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
+}
+function visibleCustomerBookings(){
+ if(currentUser?.role!=='customer') return [];
+ const filterDate=$('customerDateFilter')?.value||'';
+ return B.filter(x=>!filterDate || x.date===filterDate)
+   .sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
+}
 function render(){
- let list=currentUser?.role==='customer'?B.slice().reverse():B.slice().reverse();
- $('records').innerHTML=list.map(x=>info(x,false)).join('')||'<p class="muted">No bookings yet.</p>'
+ let list=currentUser?.role==='customer'?visibleCustomerBookings():B.slice().reverse();
+ $('records').innerHTML=list.map(x=>info(x,false)).join('')||'<p class="muted">No bookings for this date.</p>';
+ if(currentUser?.role==='customer') $('recordsCard').querySelector('.muted').textContent='All customer bookings for the selected date are shown below.';
 }
 function adminDashboard(){
  let pending=B.filter(x=>x.status==='pending'),active=B.filter(x=>!['completed','cancelled','rejected'].includes(x.status)),completed=B.filter(x=>x.status==='completed');
@@ -207,8 +234,8 @@ function driverDashboard(){
  let mine=B.filter(x=>x.driverId===currentUser.driverId);
  $('dashContent').innerHTML='<p>Welcome, '+esc(currentUser.name)+'.</p><h3>My Rides</h3>'+ (mine.length?mine.slice().reverse().map(x=>{let h=info(x,false);if(['assigned','confirmed'].includes(x.status))h+='<button class="success small" onclick="driverAccept('+x.id+')">Accept Ride</button>';if(x.status==='assigned')h+='<button class="primary small" onclick="startRide('+x.id+')">Start Ride</button>';if(x.status==='started')h+='<button class="success small" onclick="completeRide('+x.id+')">Complete Ride</button>';return h}).join(''):'<p class="muted">No rides assigned.</p>')}
 function customerDashboard(){
- let mine=B.filter(x=>x.name===currentUser.name||x.phone===currentUser.phone);
- $('dashContent').innerHTML='<p>Welcome. Your bookings are shown below.</p>'+ (mine.length?mine.slice().reverse().map(x=>info(x,false)).join(''):'<p class="muted">Use the booking form below to create a ride.</p>')
+ let mine=customerBookings();
+ $('dashContent').innerHTML='<p>Welcome. Your bookings are shown below.</p>'+ (mine.length?mine.map(x=>info(x,false)).join(''):'<p class="muted">No bookings for the selected date.</p>');
 }
 function setRole(){
  let role=currentUser?.role;$('roleBadge').textContent=role?role.toUpperCase():'Guest';$('loginCard').style.display=role?'none':'block';$('dashboard').style.display=role?'block':'none';$('bookingCard').style.display=role==='customer'?'block':'none';$('recordsCard').style.display=role==='customer'?'block':'none';$('bookActions').style.display=role==='customer'?'block':'none';
@@ -221,11 +248,23 @@ async function login(){
   const pw=String($('loginPass').value||'');
 
   if(role==='customer'){
-    const name=prompt('Enter customer name');
-    if(!name || !name.trim()) return;
-    const phone=prompt('Enter phone number') || '';
-    currentUser={role:'customer',name:name.trim(),phone:phone.trim()};
-    setRole();
+    if(!u || !pw){ alert('Please enter phone number and password.'); return; }
+    if(!window.jrDB){ alert('Database client is not ready. Please refresh and try again.'); return; }
+    if(!jrDatabaseReady){ alert('Database is not ready. Please wait a moment and try again.'); return; }
+    btn.disabled=true; btn.textContent='Logging in...';
+    try{
+      const {data,error}=await jrDB.from('customers').select('id,name,phone,password').eq('phone',u).eq('password',pw).maybeSingle();
+      if(error) throw error;
+      if(!data){ alert('Invalid customer phone number or password.'); return; }
+      currentUser={role:'customer',name:data.name||data.phone,phone:data.phone,customerId:data.id};
+      setRole();
+      $('name').value=currentUser.name||'';
+      $('phone').value=currentUser.phone||'';
+      return;
+    }catch(err){
+      console.error('Customer login error:',err);
+      alert('Customer login error: '+(err.message||err)+'\n\nSupabase-ல் customers table இருக்கிறதா என்று check செய்யவும்.');
+    }finally{ btn.disabled=false; btn.textContent='Login'; }
     return;
   }
 
@@ -269,22 +308,57 @@ async function login(){
   }
 }
 
+function openRegister(){
+  $("regName").value=""; $("regPhone").value=""; $("regPassword").value=""; $("regPassword2").value="";
+  $("registerModal").classList.add("show");
+}
+function closeRegister(){ $("registerModal").classList.remove("show"); }
+async function registerCustomer(){
+  const name=String($("regName").value||"").trim();
+  const phone=String($("regPhone").value||"").trim();
+  const pw=String($("regPassword").value||"");
+  const pw2=String($("regPassword2").value||"");
+  if(!name||!phone||!pw){ alert("Please enter name, phone number and password."); return; }
+  if(pw.length<4){ alert("Password must be at least 4 characters."); return; }
+  if(pw!==pw2){ alert("Passwords do not match."); return; }
+  if(!window.jrDB||!jrDatabaseReady){ alert("Database is not ready. Please wait and try again."); return; }
+  const btn=document.querySelector('#registerModal .primary'); btn.disabled=true; btn.textContent="Creating...";
+  try{
+    const {data:existing,error:checkError}=await jrDB.from('customers').select('id').eq('phone',phone).maybeSingle();
+    if(checkError) throw checkError;
+    if(existing){ alert("This phone number is already registered. Please login."); return; }
+    const {data,error}=await jrDB.from('customers').insert({name,phone,password:pw}).select('id,name,phone').single();
+    if(error) throw error;
+    alert("Registration successful. Please login.");
+    closeRegister();
+    $("loginRole").value="customer"; updateLoginUI();
+    $("loginUser").value=phone; $("loginPass").value="";
+  }catch(err){
+    console.error('Customer registration error:',err);
+    alert('Registration error: '+(err.message||err));
+  }finally{ btn.disabled=false; btn.textContent="Create Account"; }
+}
+
 function updateLoginUI(){
   const role=$('loginRole').value;
   const customer=role==='customer';
-  $('loginUserWrap').classList.toggle('hidden',customer);
-  $('loginPassWrap').classList.toggle('hidden',customer);
-  $('loginBtn').textContent=customer?'Continue as Customer':'Login';
-  $('loginHint').textContent=customer?'Customer: continue without username/password':role==='admin'?'Admin: username admin / password 1234':'Driver: use your driver username and password';
+  $('loginUserWrap').classList.remove('hidden');
+  $('loginPassWrap').classList.remove('hidden');
+  $('loginUserLabel').textContent=customer?'Phone Number':'Username';
+  $('loginUser').placeholder=customer?'Phone number':'Username';
+  $('loginBtn').textContent='Login';
+  $('loginHint').textContent=customer?'Customer: phone number + password':role==='admin'?'Admin: username + password':'Driver: username + password';
 }
 
 window.addEventListener('DOMContentLoaded',()=>{
   $('loginBtn').addEventListener('click',login);
   $('loginRole').addEventListener('change',updateLoginUI);
+  $('registerBtn').addEventListener('click',openRegister);
   $('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
   updateLoginUI();
 });
 $('logoutBtn').onclick=()=>{currentUser=null;setRole()};
+$('customerDateFilter')?.addEventListener('change',()=>{if(currentUser?.role==='customer'){customerDashboard();render();setTimeout(jrLoadLiveLocations,50);}});
 
 let editorVehicles=[],assignBookingId=null,paymentBookingId=null;
 function openDriverModal(id=null){editorVehicles=[];$('editDriverId').value=id||'';let d=id?getDriver(id):null;$('driverModalTitle').textContent=d?'Edit Driver':'Create Driver';$('driverName').value=d?.name||'';$('driverUsername').value=d?.username||'';$('driverPassword').value=d?.password||'';if(d)editorVehicles=(d.vehicles||[]).map(v=>({...v}));renderEditorVehicles();$('driverModal').classList.add('show')}
@@ -384,6 +458,7 @@ function jrDriverFromRow(d, vehicleRows){
 function jrBookingFromRow(x){
   return {
     id:Number(x.id),
+    customerId:x.customer_id || null,
     route:x.route,
     date:x.ride_date,
     time:String(x.start_time||'').slice(0,5),
@@ -443,6 +518,7 @@ async function jrSaveBookings(){
     for(const x of B){
       const row={
         id:Number(x.id),
+        customer_id:x.customerId||null,
         route:x.route,
         ride_date:x.date,
         start_time:x.time,
@@ -651,7 +727,14 @@ function jrSetLocationStatus(msg,cls=''){let e=document.getElementById('jrLocati
 function jrEnsureMap(){if(!window.L)return;let e=document.getElementById('jrLiveMap');if(!e)return;if(!jrMap){jrMap=L.map(e).setView(JR_MAP_DEFAULT,10);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(jrMap);}setTimeout(()=>jrMap.invalidateSize(),100);}
 function jrClearMarkers(){Object.values(jrLocationMarkers).forEach(m=>{try{jrMap.removeLayer(m)}catch(e){}});jrLocationMarkers={};}
 function jrIcon(heading=0){return L.divIcon({className:'',html:'<div class=\"carMarker\" style=\"transform:rotate('+Number(heading||0)+'deg)\"><span>🚗</span></div>',iconSize:[42,42],iconAnchor:[21,21]});}
-async function jrLoadLiveLocations(){if(!jrMap||!window.jrDB)return;try{let {data,error}=await jrDB.from('driver_locations').select('*').eq('active',true);if(error)throw error;let rows=data||[];if(currentUser?.role==='customer'){let mine=(B||[]).filter(x=>(x.name===currentUser.name||x.phone===currentUser.phone)&&!['cancelled','rejected','completed'].includes(x.status)&&x.driverId).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));let ids=new Set(mine.map(x=>String(x.driverId)));rows=rows.filter(x=>ids.has(String(x.driver_id)));}jrClearMarkers();if(!rows.length){jrSetLocationStatus(currentUser?.role==='customer'?'No assigned driver is currently sharing live location.':'No drivers are currently sharing live location.','warn');return;}let bounds=[];rows.forEach(x=>{let lat=Number(x.latitude),lng=Number(x.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lng))return;let d=getDriver(String(x.driver_id))||getDriver(x.driver_id),name=d?.name||('Driver '+x.driver_id);let m=L.marker([lat,lng],{icon:jrIcon(Number(x.heading||0))}).addTo(jrMap);m.bindPopup('<b>🚗 '+esc(name)+'</b><br>Updated: '+esc(new Date(x.updated_at||Date.now()).toLocaleString())+'<br>Accuracy: '+Math.round(Number(x.accuracy||0))+' m');jrLocationMarkers[String(x.driver_id)]=m;bounds.push([lat,lng]);});if(bounds.length===1)jrMap.setView(bounds[0],14);else if(bounds.length)jrMap.fitBounds(bounds,{padding:[30,30],maxZoom:14});jrSetLocationStatus(rows.length+' active driver location'+(rows.length>1?'s':'')+' on map.','ok');}catch(err){console.error(err);jrSetLocationStatus('Live location database error: '+err.message,'err');}}
+async function jrLoadLiveLocations(){if(!jrMap||!window.jrDB)return;try{let {data,error}=await jrDB.from('driver_locations').select('*').eq('active',true);if(error)throw error;let rows=data||[];if(currentUser?.role==='customer'){
+  const filterDate=document.getElementById('customerDateFilter')?.value||'';
+  // Customer map is private: only drivers assigned to THIS logged-in customer's rides.
+  // Both routes (Jaffna → Airport and Airport → Jaffna) are intentionally included.
+  const mine=customerBookings().filter(x=>!['cancelled','rejected','completed'].includes(x.status)&&x.driverId&&(!filterDate||x.date===filterDate));
+  const ids=new Set(mine.map(x=>String(x.driverId)));
+  rows=rows.filter(x=>ids.has(String(x.driver_id)));
+}jrClearMarkers();if(!rows.length){jrSetLocationStatus(currentUser?.role==='customer'?'No assigned driver is currently sharing live location.':'No drivers are currently sharing live location.','warn');return;}let bounds=[];rows.forEach(x=>{let lat=Number(x.latitude),lng=Number(x.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lng))return;let d=getDriver(String(x.driver_id))||getDriver(x.driver_id),name=d?.name||('Driver '+x.driver_id);let m=L.marker([lat,lng],{icon:jrIcon(Number(x.heading||0))}).addTo(jrMap);m.bindPopup('<b>🚗 '+esc(name)+'</b><br>Updated: '+esc(new Date(x.updated_at||Date.now()).toLocaleString())+'<br>Accuracy: '+Math.round(Number(x.accuracy||0))+' m');jrLocationMarkers[String(x.driver_id)]=m;bounds.push([lat,lng]);});if(bounds.length===1)jrMap.setView(bounds[0],14);else if(bounds.length)jrMap.fitBounds(bounds,{padding:[30,30],maxZoom:14});jrSetLocationStatus(rows.length+' active driver location'+(rows.length>1?'s':'')+' on map.','ok');}catch(err){console.error(err);jrSetLocationStatus('Live location database error: '+err.message,'err');}}
 async function jrStartLiveLocation(){
   if(!currentUser||currentUser.role!=='driver')return alert('Driver login required.');
   if(!window.isSecureContext && location.hostname!=='localhost' && location.hostname!=='127.0.0.1'){
@@ -664,7 +747,7 @@ async function jrStartLiveLocation(){
   try{if(navigator.permissions?.query){let q=await navigator.permissions.query({name:'geolocation'});if(q.state==='denied'){jrSetLocationStatus('❌ Location is blocked. Chrome Site settings → Location → Allow.','err');return;}}}catch(e){}
   jrLocationWatch=navigator.geolocation.watchPosition(async p=>{
     try{
-      let active=(B||[]).filter(x=>x.driverId===currentUser.driverId&&['assigned','started'].includes(x.status)).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))[0];
+      let active=(B||[]).filter(x=>String(x.driverId)===String(currentUser.driverId)&&['assigned','started'].includes(x.status)).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))[0];
       let heading=Number.isFinite(Number(p.coords.heading))?Number(p.coords.heading):0;
       let row={driver_id:String(currentUser.driverId),latitude:p.coords.latitude,longitude:p.coords.longitude,accuracy:Number(p.coords.accuracy||0),heading,active:true,booking_id:active?Number(active.id):null,updated_at:new Date().toISOString()};
       let {error}=await jrDB.from('driver_locations').upsert(row,{onConflict:'driver_id'});if(error)throw error;
