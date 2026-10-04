@@ -214,12 +214,21 @@ async function login(){
   }
 
   if(!u || !pw){ alert('Please enter username and password.'); return; }
-  if(!window.jrDB){ alert('Database is not ready. Please wait a moment and try again.'); return; }
+  if(!window.jrDB){ alert('Database client is not ready. Please refresh and try again.'); return; }
+  if(!jrDatabaseReady){
+    alert('Database is not ready. Please wait a moment and try again.'+(jrDatabaseError?'\n\nReason: '+jrDatabaseError:''));
+    return;
+  }
 
   btn.disabled=true; btn.textContent='Logging in...';
   try{
-    if(role==='admin' && u==='admin' && pw==='1234'){
-      currentUser={role:'admin',name:'Admin',username:'admin'};
+    if(role==='admin'){
+      const {data,error}=await jrDB.from('admins')
+        .select('id,name,username,password')
+        .eq('username',u).eq('password',pw).maybeSingle();
+      if(error) throw error;
+      if(!data){ alert('Invalid admin username or password.'); return; }
+      currentUser={role:'admin',name:data.name||data.username,username:data.username,adminId:data.id};
       setRole();
       return;
     }
@@ -337,7 +346,8 @@ updateVehicleOptions();setRole();render();
    ========================= */
 const JR_SUPABASE_URL = 'https://ahbryngbtradiooijdxn.supabase.co';
 const JR_SUPABASE_KEY = 'sb_publishable_QskBAYy0LYZsEB8vNUSOlg_YL674bjh';
-const jrDB = window.supabase.createClient(JR_SUPABASE_URL, JR_SUPABASE_KEY);
+window.jrDB = window.supabase.createClient(JR_SUPABASE_URL, JR_SUPABASE_KEY);
+const jrDB = window.jrDB;
 
 function jrDriverFromRow(d, vehicleRows){
   return {
@@ -379,8 +389,14 @@ function jrBookingFromRow(x){
   };
 }
 
+let jrDatabaseReady=false;
+let jrDatabaseError='';
+
 async function jrLoadDatabase(){
+  jrDatabaseReady=false;
+  jrDatabaseError='';
   try{
+    if(!window.jrDB) throw new Error('Supabase client failed to initialize.');
     const [driversRes, vehiclesRes, bookingsRes] = await Promise.all([
       jrDB.from('drivers').select('*').order('created_at',{ascending:true}),
       jrDB.from('vehicles').select('*').order('created_at',{ascending:true}),
@@ -394,12 +410,15 @@ async function jrLoadDatabase(){
     DRIVERS=(driversRes.data||[]).map(d=>jrDriverFromRow(d,vehiclesRes.data||[]));
     B=(bookingsRes.data||[]).map(jrBookingFromRow);
 
+    jrDatabaseReady=true;
     updateVehicleOptions();
     setRole();
     render();
   }catch(err){
-    console.error(err);
-    alert('Supabase database connection error: '+err.message);
+    jrDatabaseReady=false;
+    jrDatabaseError=err?.message||String(err);
+    console.error('Supabase database connection error:',err);
+    alert('Supabase database connection error: '+jrDatabaseError);
   }
 }
 
