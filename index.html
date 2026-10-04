@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JaffnaRide - Customer / Driver / Admin</title>
+<style>
+*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;background:#f4f7fb;color:#172033}
+header{background:#0b2545;color:#fff;padding:18px 6%;font-size:24px;font-weight:bold}
+main{max-width:1150px;margin:22px auto;padding:16px}.card{background:#fff;padding:20px;border-radius:18px;margin-bottom:18px;box-shadow:0 5px 20px #0001}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}label{font-weight:bold;font-size:13px}
+input,select{width:100%;padding:12px;margin-top:5px;border:1px solid #ccd1d8;border-radius:9px}
+button{border:0;border-radius:10px;padding:12px 14px;font-weight:bold;cursor:pointer;width:100%;margin-top:10px}
+.primary{background:#0878e8;color:#fff}.secondary{background:#667085;color:#fff}.danger{background:#c62828;color:#fff}.success{background:#087a4b;color:#fff}.warning{background:#d97706;color:#fff}
+.muted{color:#667085}.notice{padding:12px;border-radius:10px;background:#fff7df;margin-top:12px}
+.fare{padding:16px;margin-top:15px;border-radius:12px;background:#eef6ff}.price{font-size:28px;font-weight:bold}
+.ride{padding:16px;margin-top:12px;border-radius:12px;background:#fff;border:1px solid #ddd}
+.tag{float:right;padding:6px 9px;border-radius:15px;font-size:12px;background:#eef1f5}.rowActions{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.small{padding:9px;margin-top:8px}.pill{display:inline-block;padding:5px 9px;border-radius:12px;background:#eef1f5;font-size:12px;margin:3px}
+.pending{background:#fff2cc}.confirmed{background:#dff7e8}.started{background:#dbeafe}.completed{background:#e7f5ec}.cancelled{background:#fee2e2}.rejected{background:#fee2e2}
+.vehicleBox{border:1px solid #ddd;border-radius:12px;padding:12px;margin-top:10px}.vehicleLine{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{padding:15px;border-radius:12px;background:#f7f8fa}.stat b{display:block;font-size:22px;margin-top:5px}
+.modal{display:none;position:fixed;inset:0;background:#0009;z-index:9999;padding:18px;align-items:center;justify-content:center}.modal.show{display:flex}
+.modalBox{width:min(700px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:20px;padding:22px}.modalHead{display:flex;justify-content:space-between;align-items:center;gap:10px}.close{width:auto!important;margin:0!important;background:#eef1f5!important;color:#172033!important}
+.hidden{display:none!important}.tabs{display:flex;gap:7px;overflow:auto;margin-bottom:14px}.tabs button{white-space:nowrap;width:auto;margin:0}.filterbar{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+@media(max-width:700px){.grid,.stats,.filterbar{grid-template-columns:1fr}.rowActions{grid-template-columns:1fr}}
+
+/* ===== Live Location ===== */
+.liveLocationMap{height:420px;border-radius:14px;overflow:hidden;border:1px solid #d8dee8;margin-top:12px}
+.locationStatus{padding:10px 12px;border-radius:10px;background:#eef6ff;margin-top:10px}.locationStatus.ok{background:#e7f7ee}.locationStatus.warn{background:#fff7df}.locationStatus.err{background:#fee2e2}
+.locationButtons{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.httpsNotice{padding:12px;border-radius:10px;background:#fff3cd;color:#664d03;margin-top:10px;font-weight:600}.carMarker{width:42px;height:42px;border-radius:50%;background:#fff;border:3px solid #0878e8;box-shadow:0 3px 12px #0005;display:flex;align-items:center;justify-content:center;font-size:25px;transform-origin:center center}.carMarker span{display:block;line-height:1}@media(max-width:700px){.locationButtons{grid-template-columns:1fr}}
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+</head>
+<body>
+<header>🚐 JaffnaRide <span id="roleBadge" style="float:right;font-size:13px;background:#fff2cc;color:#172033;padding:7px 10px;border-radius:14px">Guest</span></header>
+<main>
+<div class="card" id="loginCard">
+<h2>JaffnaRide Login</h2>
+<div class="grid">
+<div><label>Select User</label><select id="loginRole">
+<option value="customer">Customer</option>
+<option value="driver">Driver</option>
+<option value="admin">Admin</option>
+</select></div>
+<div id="loginUserWrap"><label>Username</label><input id="loginUser" placeholder="Username"></div>
+<div id="loginPassWrap"><label>Password</label><input id="loginPass" type="password" placeholder="Password"></div>
+</div>
+<button class="primary" id="loginBtn">Login</button>
+<p class="muted" id="loginHint">Customer: Login to book a ride · Driver/Admin: username + password</p>
+</div>
+
+<div class="card" id="dashboard" style="display:none">
+<h2 id="dashTitle">Dashboard</h2><div id="dashContent"></div><button class="secondary" id="logoutBtn">Logout</button>
+</div>
+
+<div class="card" id="bookingCard">
+<h1>Book Your Ride</h1><p class="muted">Select a vehicle and choose your pickup/start time. Fare and arrival time are calculated automatically.</p>
+<div class="grid">
+<div><label>Route</label><select id="route"><option value="out">Jaffna → Bandaranaike Airport</option><option value="back">Bandaranaike Airport → Jaffna</option></select></div>
+<div><label>Date</label><input id="date" type="date"></div>
+<div><label>Start / Pickup time</label><input id="time" type="time"></div>
+<div><label>Name</label><input id="name" placeholder="Customer name"></div>
+<div><label>Phone</label><input id="phone" placeholder="+94..."></div>
+<div><label>Vehicle</label><select id="vehicleSelect"><option value="">No vehicles available</option></select></div>
+<div><label>Passengers</label><select id="pass"><option value="">Select vehicle first</option></select></div>
+</div>
+<div id="vehicleCapacityNotice" class="notice">Select a vehicle.</div>
+<div class="fare"><span>Fare</span><div class="price" id="farePreview">Rs. 0</div><span>Estimated arrival: <b id="arrivalPreview">—</b></span></div>
+</div>
+<div class="card" id="bookActions"><button id="bookBtn" class="primary">Book Now — Send Request to Admin</button></div>
+
+<div class="card" id="recordsCard"><h2>My / Booking Records</h2><div id="records"></div></div>
+</main>
+
+<div id="driverModal" class="modal"><div class="modalBox">
+<div class="modalHead"><h2 id="driverModalTitle">Create Driver</h2><button class="close" onclick="closeDriverModal()">✕</button></div>
+<input type="hidden" id="editDriverId">
+<label>Driver name</label><input id="driverName" placeholder="Kumar">
+<label>Username</label><input id="driverUsername" placeholder="kumar">
+<label>Password</label><input id="driverPassword" type="text" placeholder="Password">
+<h3>Vehicles</h3><div class="grid">
+<div><label>Vehicle name/type</label><input id="newVehicleName" placeholder="KDH"></div>
+<div><label>Maximum passengers</label><input id="newVehicleMax" type="number" min="1" placeholder="3"></div>
+<div><label>Fare per ride (Rs.)</label><input id="newVehicleFare" type="number" min="0" step="100" placeholder="50000"></div>
+<div><label>Travel hours</label><input id="newVehicleHours" type="number" min="0.5" step="0.5" placeholder="5"></div>
+</div><button class="secondary" onclick="addVehicleToEditor()">+ Add Vehicle</button><div id="editorVehicles"></div>
+<button class="primary" onclick="saveDriver()">Save Driver</button>
+</div></div>
+
+<div id="assignModal" class="modal"><div class="modalBox">
+<div class="modalHead"><h2>Assign Ride</h2><button class="close" onclick="closeAssign()">✕</button></div>
+<div id="assignBookingInfo"></div><label>Driver with selected vehicle</label><select id="assignDriver"></select>
+<button class="primary" onclick="confirmAssign()">Confirm Assignment</button>
+</div></div>
+
+<div id="paymentModal" class="modal"><div class="modalBox">
+<div class="modalHead"><h2>Payment</h2><button class="close" onclick="closePayment()">✕</button></div>
+<div id="paymentInfo"></div><label>Advance / payment amount (Rs.)</label><input id="paymentAmount" type="number" min="0" step="100">
+<button class="success" onclick="savePayment()">Save Payment</button>
+</div></div>
+
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+let currentUser=null,B=[],DRIVERS=[];
+B=[];
+DRIVERS=[];
+DRIVERS.forEach(d=>(d.vehicles||[]).forEach(v=>{if(v.fare==null)v.fare=50000;if(v.travelHours==null)v.travelHours=5;}));
+const today=new Date();$('date').value=today.toISOString().slice(0,10);
+
+function save(){render();setRole()}
+function saveDrivers(){setRole();updateVehicleOptions()}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function mins(t){if(!t||!t.includes(':'))return NaN;let a=t.split(':').map(Number);return a[0]*60+a[1]}
+function calcArrival(t,h){let m=mins(t);if(isNaN(m)||!h)return '';m+=Math.round(Number(h)*60);m%=1440;return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
+function formatHours(h){h=Number(h)||0;return h%1?' '+h.toFixed(1)+' hours':h+' hours'}
+function getVehicle(id){for(const d of DRIVERS){let v=(d.vehicles||[]).find(v=>v.id===id);if(v)return v}return null}
+function getDriver(id){return DRIVERS.find(d=>d.id===id)||null}
+function isConflict(x,ignoreId=null){
+ let a=mins(x.time), b=a+Math.round(Number(x.travelHours||0)*60);
+ return B.some(y=>y.id!==ignoreId&&y.date===x.date&&y.vehicleId===x.vehicleId&&!['cancelled','rejected'].includes(y.status)&&
+   Math.max(a,mins(y.time)) < Math.min(b,mins(y.time)+Math.round(Number(y.travelHours||0)*60)));
+}
+function statusClass(s){return ({pending:'pending',confirmed:'confirmed',assigned:'confirmed',started:'started',completed:'completed',cancelled:'cancelled',rejected:'rejected'}[s]||'pending')}
+function statusLabel(s){return ({pending:'PENDING ADMIN',confirmed:'CONFIRMED',assigned:'DRIVER ASSIGNED',started:'RIDE STARTED',completed:'COMPLETED',cancelled:'CANCELLED',rejected:'REJECTED'}[s]||s)}
+function info(x,adminMode=false){
+ let d=x.driverId?getDriver(x.driverId):null;
+ let html='<div class="ride"><span class="tag '+statusClass(x.status)+'">'+esc(statusLabel(x.status))+'</span>'+
+ '<b>'+(x.route==='out'?'Jaffna → Bandaranaike Airport':'Bandaranaike Airport → Jaffna')+'</b>'+
+ '<p>📅 '+esc(x.date)+' · 🕐 Start: <b>'+esc(x.time)+'</b> · 🏁 Arrival: <b>'+esc(x.arrival)+'</b></p>'+
+ '<p>👤 '+esc(x.name)+' · 👥 '+esc(x.passengers)+' · 📞 '+esc(x.phone)+'</p>'+
+ '<p>🚐 <b>'+esc(x.vehicleName)+'</b> · 💰 <b>Rs.'+Number(x.fare||0).toLocaleString()+'</b> · Paid: <b>Rs.'+Number(x.paid||0).toLocaleString()+'</b> · Balance: <b>Rs.'+Math.max(0,Number(x.fare||0)-Number(x.paid||0)).toLocaleString()+'</b></p>'+
+ '<p>Driver: <b>'+esc(d?.name||'Not assigned')+'</b></p>';
+ if(x.cancelReason)html+='<p>Cancellation: '+esc(x.cancelReason)+'</p>';
+ if(adminMode){
+   if(x.status==='pending')html+='<div class="rowActions"><button class="primary small" onclick="approveBooking('+x.id+')">Confirm Booking</button><button class="danger small" onclick="rejectBooking('+x.id+')">Reject</button></div>';
+   if(['confirmed','assigned'].includes(x.status))html+='<button class="primary small" onclick="openAssign('+x.id+')">'+(x.driverId?'Change Driver':'Assign Driver')+'</button>';
+   if(!['cancelled','rejected'].includes(x.status))html+='<button class="secondary small" onclick="openPayment('+x.id+')">Add Payment</button>';
+   html+='<button class="danger small" onclick="cancelBooking('+x.id+')">Cancel Booking</button>';
+ }
+ if(currentUser?.role==='customer'&&x.status!=='completed'&&x.status!=='cancelled'&&x.status!=='rejected')html+='<button class="danger small" onclick="customerCancel('+x.id+')">Cancel My Booking</button>';
+ html+='</div>';return html;
+}
+function valid(){
+ if(!$('date').value||!$('time').value||!$('name').value.trim()||!$('phone').value.trim()||!$('vehicleSelect').value){alert('Please fill Date, Start time, Name, Phone and Vehicle.');return false}
+ let v=getVehicle($('vehicleSelect').value),p=Number($('pass').value);if(!v||p>Number(v.max)){alert('Please select a valid vehicle/passenger count.');return false}
+ let x={date:$('date').value,time:$('time').value,vehicleId:v.id,travelHours:v.travelHours};if(isConflict(x)){alert('This vehicle is already booked for this time. Please choose another vehicle or time.');return false}return true
+}
+function book(){
+ if(!valid())return;let v=getVehicle($('vehicleSelect').value),fare=Number(v.fare||0),arrival=calcArrival($('time').value,v.travelHours);
+ B.push({id:Date.now(),route:$('route').value,date:$('date').value,time:$('time').value,arrival,name:$('name').value.trim(),phone:$('phone').value.trim(),passengers:Number($('pass').value),vehicleId:v.id,vehicleName:v.name,fare,travelHours:Number(v.travelHours),paid:0,status:'pending',driverId:null,createdAt:new Date().toISOString()});
+ save();alert('Booking request sent to Admin.')
+}
+function updateVehicleOptions(){let old=$('vehicleSelect').value,all=[];DRIVERS.forEach(d=>(d.vehicles||[]).forEach(v=>all.push({d,v})));
+ $('vehicleSelect').innerHTML=all.length?'<option value="">Select vehicle</option>'+all.map(o=>'<option value="'+esc(o.v.id)+'">'+esc(o.v.name)+' — Rs.'+Number(o.v.fare||0).toLocaleString()+' · '+formatHours(o.v.travelHours)+'</option>').join(''):'<option value="">No vehicles available</option>';
+ if(all.some(o=>o.v.id===old))$('vehicleSelect').value=old;updatePassengerOptions()}
+function updatePassengerOptions(){let v=getVehicle($('vehicleSelect').value),max=v?Number(v.max):0;$('pass').innerHTML=max?Array.from({length:max},(_,i)=>'<option value="'+(i+1)+'">'+(i+1)+'</option>').join(''):'<option value="">Select vehicle first</option>';
+ if(!v){$('vehicleCapacityNotice').textContent='Select a vehicle.';$('farePreview').textContent='Rs. 0';$('arrivalPreview').textContent='—';return}
+ $('vehicleCapacityNotice').innerHTML='Selected: <b>'+esc(v.name)+'</b> · Max <b>'+max+'</b> passengers · Fare <b>Rs.'+Number(v.fare||0).toLocaleString()+'</b> · Travel <b>'+formatHours(v.travelHours)+'</b>.';
+ previewArrival()}
+function previewArrival(){let v=getVehicle($('vehicleSelect').value);$('farePreview').textContent='Rs. '+Number(v?.fare||0).toLocaleString();$('arrivalPreview').textContent=v?calcArrival($('time').value,v.travelHours)||'—':'—'}
+$('vehicleSelect').addEventListener('change',updatePassengerOptions);$('time').addEventListener('input',previewArrival);
+
+function render(){
+ let list=currentUser?.role==='customer'?B.slice().reverse():B.slice().reverse();
+ $('records').innerHTML=list.map(x=>info(x,false)).join('')||'<p class="muted">No bookings yet.</p>'
+}
+function adminDashboard(){
+ let pending=B.filter(x=>x.status==='pending'),active=B.filter(x=>!['completed','cancelled','rejected'].includes(x.status)),completed=B.filter(x=>x.status==='completed');
+ let income=B.reduce((s,x)=>s+Number(x.paid||0),0);
+ let drivers=DRIVERS.map(d=>'<div class="ride"><b>'+esc(d.name)+'</b><p>Username: '+esc(d.username)+'</p>'+
+ (d.vehicles||[]).map(v=>'<div class="vehicleBox"><b>'+esc(v.name)+'</b> · max '+v.max+' · Rs.'+Number(v.fare||0).toLocaleString()+' · '+formatHours(v.travelHours)+'</div>').join('')+
+ '<div class="rowActions"><button class="secondary small" onclick="editDriver(\''+esc(d.id)+'\')">Edit</button><button class="danger small" onclick="deleteDriver(\''+esc(d.id)+'\')">Delete</button></div></div>').join('');
+ $('dashContent').innerHTML='<div class="stats"><div class="stat">Bookings<b>'+B.length+'</b></div><div class="stat">Pending<b>'+pending.length+'</b></div><div class="stat">Active<b>'+active.length+'</b></div><div class="stat">Collected<b>Rs.'+income.toLocaleString()+'</b></div></div>'+
+ '<div class="tabs"><button class="primary" onclick="openDriverModal()">+ Driver / Vehicle</button><button class="secondary" onclick="showAdminTools()">Reports & Backup</button></div>'+
+ '<h3>Booking Requests / Rides</h3>'+ (B.length?B.slice().reverse().map(x=>info(x,true)).join(''):'<p class="muted">No bookings.</p>')+
+ '<h3>Driver & Vehicle Management</h3>'+drivers;
+}
+function showAdminTools(){
+ let byVehicle={};B.forEach(x=>{byVehicle[x.vehicleName]=(byVehicle[x.vehicleName]||0)+1});
+ let completed=B.filter(x=>x.status==='completed'),revenue=B.reduce((s,x)=>s+Number(x.paid||0),0);
+ $('dashContent').innerHTML='<button class="secondary" onclick="adminDashboard()">← Back</button><h3>Search / Reports</h3>'+
+ '<div class="filterbar"><input id="reportSearch" placeholder="Customer / phone / booking ID"><input id="reportDate" type="date"><select id="reportStatus"><option value="">All status</option><option>pending</option><option>confirmed</option><option>assigned</option><option>started</option><option>completed</option><option>cancelled</option></select></div><button class="primary" onclick="runReport()">Search</button><div id="reportResult"></div>'+
+ '<h3>Business Summary</h3><p>Completed rides: <b>'+completed.length+'</b> · Collected: <b>Rs.'+revenue.toLocaleString()+'</b></p>'+
+ '<p>'+Object.entries(byVehicle).map(([k,v])=>esc(k)+': '+v+' booking(s)').join(' · ')+'</p>'+
+ '<div class="rowActions"><button class="success" onclick="exportCSV()">Export CSV</button><button class="secondary" onclick="backupData()">Backup JSON</button></div>'+
+ '<label>Restore JSON backup</label><input type="file" id="restoreFile" accept=".json" onchange="restoreData(event)">';
+}
+function runReport(){let q=($('reportSearch').value||'').toLowerCase(),d=$('reportDate').value,s=$('reportStatus').value;let a=B.filter(x=>(!q||String(x.id).includes(q)||x.name.toLowerCase().includes(q)||x.phone.toLowerCase().includes(q))&&(!d||x.date===d)&&(!s||x.status===s));$('reportResult').innerHTML='<h4>'+a.length+' result(s)</h4>'+a.map(x=>info(x,true)).join('')||'<p>No results.</p>'}
+function driverDashboard(){
+ let mine=B.filter(x=>x.driverId===currentUser.driverId);
+ $('dashContent').innerHTML='<p>Welcome, '+esc(currentUser.name)+'.</p><h3>My Rides</h3>'+ (mine.length?mine.slice().reverse().map(x=>{let h=info(x,false);if(['assigned','confirmed'].includes(x.status))h+='<button class="success small" onclick="driverAccept('+x.id+')">Accept Ride</button>';if(x.status==='assigned')h+='<button class="primary small" onclick="startRide('+x.id+')">Start Ride</button>';if(x.status==='started')h+='<button class="success small" onclick="completeRide('+x.id+')">Complete Ride</button>';return h}).join(''):'<p class="muted">No rides assigned.</p>')}
+function customerDashboard(){
+ let mine=B.filter(x=>x.name===currentUser.name||x.phone===currentUser.phone);
+ $('dashContent').innerHTML='<p>Welcome. Your bookings are shown below.</p>'+ (mine.length?mine.slice().reverse().map(x=>info(x,false)).join(''):'<p class="muted">Use the booking form below to create a ride.</p>')
+}
+function setRole(){
+ let role=currentUser?.role;$('roleBadge').textContent=role?role.toUpperCase():'Guest';$('loginCard').style.display=role?'none':'block';$('dashboard').style.display=role?'block':'none';$('bookingCard').style.display=role==='customer'?'block':'none';$('recordsCard').style.display=role==='customer'?'block':'none';$('bookActions').style.display=role==='customer'?'block':'none';
+ if(!role)return;if(role==='admin'){$('dashTitle').textContent='Admin Dashboard';adminDashboard()}else if(role==='driver'){$('dashTitle').textContent='Driver Dashboard';driverDashboard()}else{$('dashTitle').textContent='Customer Dashboard';customerDashboard()}render()
+}
+async function login(){
+  const btn=$('loginBtn');
+  const role=$('loginRole').value;
+  const u=String($('loginUser').value||'').trim();
+  const pw=String($('loginPass').value||'');
+
+  if(role==='customer'){
+    const name=prompt('Enter customer name');
+    if(!name || !name.trim()) return;
+    const phone=prompt('Enter phone number') || '';
+    currentUser={role:'customer',name:name.trim(),phone:phone.trim()};
+    setRole();
+    return;
+  }
+
+  if(!u || !pw){ alert('Please enter username and password.'); return; }
+  if(!window.jrDB){ alert('Database is not ready. Please wait a moment and try again.'); return; }
+
+  btn.disabled=true; btn.textContent='Logging in...';
+  try{
+    if(role==='admin' && u==='admin' && pw==='1234'){
+      currentUser={role:'admin',name:'Admin',username:'admin'};
+      setRole();
+      return;
+    }
+
+    if(role==='driver'){
+      const {data,error}=await jrDB.from('drivers')
+        .select('id,name,username,password')
+        .eq('username',u).eq('password',pw).maybeSingle();
+      if(error) throw error;
+      if(!data){ alert('Invalid driver username or password.'); return; }
+      let d=DRIVERS.find(x=>String(x.id)===String(data.id));
+      if(!d){ d={id:data.id,name:data.name,username:data.username,password:data.password,vehicles:[]}; DRIVERS.push(d); }
+      currentUser={role:'driver',name:data.name,username:data.username,driverId:data.id};
+      setRole();
+      return;
+    }
+  }catch(err){
+    console.error('Login error:',err);
+    alert('Login error: '+(err.message||err));
+  }finally{
+    btn.disabled=false; btn.textContent='Login';
+  }
+}
+
+function updateLoginUI(){
+  const role=$('loginRole').value;
+  const customer=role==='customer';
+  $('loginUserWrap').classList.toggle('hidden',customer);
+  $('loginPassWrap').classList.toggle('hidden',customer);
+  $('loginBtn').textContent=customer?'Continue as Customer':'Login';
+  $('loginHint').textContent=customer?'Customer: continue without username/password':role==='admin'?'Admin: username admin / password 1234':'Driver: use your driver username and password';
+}
+
+window.addEventListener('DOMContentLoaded',()=>{
+  $('loginBtn').addEventListener('click',login);
+  $('loginRole').addEventListener('change',updateLoginUI);
+  $('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
+  updateLoginUI();
+});
+$('logoutBtn').onclick=()=>{currentUser=null;setRole()};
+
+let editorVehicles=[],assignBookingId=null,paymentBookingId=null;
+function openDriverModal(id=null){editorVehicles=[];$('editDriverId').value=id||'';let d=id?getDriver(id):null;$('driverModalTitle').textContent=d?'Edit Driver':'Create Driver';$('driverName').value=d?.name||'';$('driverUsername').value=d?.username||'';$('driverPassword').value=d?.password||'';if(d)editorVehicles=(d.vehicles||[]).map(v=>({...v}));renderEditorVehicles();$('driverModal').classList.add('show')}
+function closeDriverModal(){$('driverModal').classList.remove('show')}
+function addVehicleToEditor(){let n=$('newVehicleName').value.trim(),m=Number($('newVehicleMax').value),fare=Number($('newVehicleFare').value),hours=Number($('newVehicleHours').value);if(!n||m<1||fare<0||hours<=0){alert('Enter vehicle, passenger capacity, fare and travel hours.');return}editorVehicles.push({id:'v_'+Date.now()+'_'+Math.random().toString(16).slice(2),name:n,max:m,fare,travelHours:hours});$('newVehicleName').value='';$('newVehicleMax').value='';$('newVehicleFare').value='';$('newVehicleHours').value='';renderEditorVehicles()}
+function renderEditorVehicles(){$('editorVehicles').innerHTML=editorVehicles.length?editorVehicles.map((v,i)=>'<div class="vehicleBox"><div class="grid"><div><label>Vehicle</label><input value="'+esc(v.name)+'" oninput="editorVehicles['+i+'].name=this.value"></div><div><label>Max passengers</label><input type="number" min="1" value="'+v.max+'" oninput="editorVehicles['+i+'].max=Number(this.value)"></div><div><label>Fare</label><input type="number" min="0" value="'+v.fare+'" oninput="editorVehicles['+i+'].fare=Number(this.value)"></div><div><label>Travel hours</label><input type="number" min="0.5" step="0.5" value="'+v.travelHours+'" oninput="editorVehicles['+i+'].travelHours=Number(this.value)"></div></div><button class="danger small" onclick="editorVehicles.splice('+i+',1);renderEditorVehicles()">Remove Vehicle</button></div>').join(''):'<p class="muted">No vehicles added.</p>'}
+function saveDriver(){let id=$('editDriverId').value,n=$('driverName').value.trim(),u=$('driverUsername').value.trim(),pw=$('driverPassword').value;if(!n||!u||!pw||!editorVehicles.length){alert('Driver details and at least one vehicle are required.');return}if(DRIVERS.some(d=>d.username===u&&d.id!==id)){alert('Username already exists.');return}editorVehicles=editorVehicles.map(v=>({...v,name:String(v.name).trim(),max:Number(v.max)||1,fare:Number(v.fare)||0,travelHours:Number(v.travelHours)||1})).filter(v=>v.name);if(id)Object.assign(getDriver(id),{name:n,username:u,password:pw,vehicles:editorVehicles});else DRIVERS.push({id:'d_'+Date.now(),name:n,username:u,password:pw,vehicles:editorVehicles});saveDrivers();closeDriverModal();alert('Driver saved.')}
+function editDriver(id){openDriverModal(id)}
+function deleteDriver(id){if(B.some(x=>x.driverId===id&&!['completed','cancelled','rejected'].includes(x.status))){alert('This driver has active rides.');return}if(confirm('Delete driver?')){DRIVERS=DRIVERS.filter(x=>x.id!==id);saveDrivers()}}
+function openAssign(id){assignBookingId=id;let b=B.find(x=>x.id===id);if(!b)return;$('assignBookingInfo').innerHTML=info(b,false);let choices=DRIVERS.filter(d=>(d.vehicles||[]).some(v=>v.id===b.vehicleId||v.name===b.vehicleName));$('assignDriver').innerHTML=choices.length?choices.map(d=>'<option value="'+d.id+'">'+esc(d.name)+'</option>').join(''):'<option value="">No driver has this vehicle</option>';$('assignModal').classList.add('show')}
+function closeAssign(){$('assignModal').classList.remove('show');assignBookingId=null}
+function confirmAssign(){let d=getDriver($('assignDriver').value),b=B.find(x=>x.id===assignBookingId);if(!d||!b)return alert('Driver not found.');b.driverId=d.id;b.status='assigned';b.assignedAt=new Date().toISOString();save();closeAssign();alert('Ride assigned.')}
+function approveBooking(id){
+ let b=B.find(x=>x.id===id);
+ if(!b)return;
+ /* Ignore the booking being confirmed; only compare it with OTHER bookings. */
+ if(isConflict(b,b.id)){
+   alert('Vehicle is no longer available at this time.');
+   return;
+ }
+ b.status='confirmed';
+ save();
+}
+function rejectBooking(id){let b=B.find(x=>x.id===id);if(!b)return;b.status='rejected';save()}
+function openPayment(id){paymentBookingId=id;let b=B.find(x=>x.id===id);$('paymentInfo').innerHTML=info(b,false);$('paymentAmount').value='';$('paymentModal').classList.add('show')}
+function closePayment(){$('paymentModal').classList.remove('show');paymentBookingId=null}
+function savePayment(){let b=B.find(x=>x.id===paymentBookingId),a=Number($('paymentAmount').value);if(!b||!a||a<0)return alert('Enter payment amount.');if(Number(b.paid||0)+a>Number(b.fare||0))return alert('Payment cannot exceed fare.');b.paid=Number(b.paid||0)+a;save();closePayment()}
+function cancelBooking(id){let b=B.find(x=>x.id===id);if(!b)return;let r=prompt('Cancellation reason (optional):')??'';b.status='cancelled';b.cancelReason=r;save()}
+function customerCancel(id){cancelBooking(id)}
+async function jrDriverStatusUpdate(id,status,extra={}){
+  const b=B.find(x=>x.id===id);
+  if(!b || !currentUser || currentUser.role!=='driver') return;
+
+  /* Driver can change only a ride assigned to that driver. */
+  if(b.driverId!==currentUser.driverId){
+    alert('This ride is not assigned to you.');
+    return;
+  }
+
+  try{
+    const update={status,...extra};
+    const {error}=await jrDB.from('bookings').update(update).eq('id',Number(id)).eq('driver_id',currentUser.driverId);
+    if(error) throw error;
+
+    Object.assign(b,update);
+    render();
+    setRole();
+  }catch(err){
+    console.error('Driver status update error:',err);
+    alert('Database update error: '+err.message);
+  }
+}
+
+function driverAccept(id){
+  jrDriverStatusUpdate(id,'assigned');
+}
+
+function startRide(id){
+  jrDriverStatusUpdate(id,'started',{started_at:new Date().toISOString()});
+}
+
+function completeRide(id){
+  jrDriverStatusUpdate(id,'completed',{completed_at:new Date().toISOString()});
+}
+function backupData(){let data=JSON.stringify({bookings:B,drivers:DRIVERS,version:2},null,2),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download='jaffnaride-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click()}
+function restoreData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(!Array.isArray(d.bookings)||!Array.isArray(d.drivers))throw 0;if(confirm('Restore backup?')){B=d.bookings;DRIVERS=d.drivers;setRole();updateVehicleOptions();alert('Backup loaded.')}}catch(err){alert('Invalid backup file.')}};r.readAsText(f)}
+function exportCSV(){let rows=[['ID','Date','Start','Arrival','Customer','Phone','Route','Vehicle','Fare','Paid','Balance','Status','Driver']];B.forEach(x=>rows.push([x.id,x.date,x.time,x.arrival,x.name,x.phone,x.route,x.vehicleName,x.fare,x.paid||0,Math.max(0,(x.fare||0)-(x.paid||0)),x.status,getDriver(x.driverId)?.name||'']));let csv=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='jaffnaride-bookings.csv';a.click()}
+updateVehicleOptions();setRole();render();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+/* =========================
+   JaffnaRide - Supabase only
+   ========================= */
+const JR_SUPABASE_URL = 'https://ahbryngbtradiooijdxn.supabase.co';
+const JR_SUPABASE_KEY = 'sb_publishable_QskBAYy0LYZsEB8vNUSOlg_YL674bjh';
+const jrDB = window.supabase.createClient(JR_SUPABASE_URL, JR_SUPABASE_KEY);
+
+function jrDriverFromRow(d, vehicleRows){
+  return {
+    id:d.id,
+    name:d.name,
+    username:d.username,
+    password:d.password,
+    vehicles:(vehicleRows||[]).filter(v=>v.driver_id===d.id).map(v=>({
+      id:v.id,
+      name:v.name,
+      max:Number(v.max_passengers),
+      fare:Number(v.fare||0),
+      travelHours:Number(v.travel_hours||1)
+    }))
+  };
+}
+
+function jrBookingFromRow(x){
+  return {
+    id:Number(x.id),
+    route:x.route,
+    date:x.ride_date,
+    time:String(x.start_time||'').slice(0,5),
+    arrival:x.arrival_time ? String(x.arrival_time).slice(0,5) : '',
+    name:x.customer_name,
+    phone:x.phone,
+    passengers:Number(x.passengers||1),
+    vehicleId:x.vehicle_id,
+    vehicleName:x.vehicle_name,
+    fare:Number(x.fare||0),
+    travelHours:Number(x.travel_hours||1),
+    paid:Number(x.paid||0),
+    status:x.status,
+    driverId:x.driver_id,
+    cancelReason:x.cancel_reason,
+    startedAt:x.started_at || null,
+    completedAt:x.completed_at || null,
+    createdAt:x.created_at
+  };
+}
+
+async function jrLoadDatabase(){
+  try{
+    const [driversRes, vehiclesRes, bookingsRes] = await Promise.all([
+      jrDB.from('drivers').select('*').order('created_at',{ascending:true}),
+      jrDB.from('vehicles').select('*').order('created_at',{ascending:true}),
+      jrDB.from('bookings').select('*').order('created_at',{ascending:true})
+    ]);
+
+    if(driversRes.error) throw driversRes.error;
+    if(vehiclesRes.error) throw vehiclesRes.error;
+    if(bookingsRes.error) throw bookingsRes.error;
+
+    DRIVERS=(driversRes.data||[]).map(d=>jrDriverFromRow(d,vehiclesRes.data||[]));
+    B=(bookingsRes.data||[]).map(jrBookingFromRow);
+
+    updateVehicleOptions();
+    setRole();
+    render();
+  }catch(err){
+    console.error(err);
+    alert('Supabase database connection error: '+err.message);
+  }
+}
+
+async function jrSaveBookings(){
+  try{
+    for(const x of B){
+      const row={
+        id:Number(x.id),
+        route:x.route,
+        ride_date:x.date,
+        start_time:x.time,
+        arrival_time:x.arrival||null,
+        customer_name:x.name,
+        phone:x.phone,
+        passengers:Number(x.passengers||1),
+        vehicle_id:x.vehicleId||null,
+        vehicle_name:x.vehicleName||'',
+        fare:Number(x.fare||0),
+        travel_hours:Number(x.travelHours||1),
+        paid:Number(x.paid||0),
+        status:x.status||'pending',
+        driver_id:x.driverId||null,
+        cancel_reason:x.cancelReason||null,
+        created_at:x.createdAt||new Date().toISOString()
+      };
+      const {error}=await jrDB.from('bookings').upsert(row,{onConflict:'id'});
+      if(error) throw error;
+    }
+  }catch(err){
+    console.error(err);
+    alert('Booking database save error: '+err.message);
+  }
+}
+
+/* Replace local save() with Supabase save. */
+window.save = function(){
+  render();
+  setRole();
+  jrSaveBookings();
+};
+
+/* Driver + vehicle database save. */
+window.saveDrivers = function(){
+  setRole();
+  updateVehicleOptions();
+
+  (async()=>{
+    try{
+      for(const d of DRIVERS){
+        const {error:de}=await jrDB.from('drivers').upsert({
+          id:d.id,
+          name:d.name,
+          username:d.username,
+          password:d.password
+        },{onConflict:'id'});
+        if(de) throw de;
+
+        await jrDB.from('vehicles').delete().eq('driver_id',d.id);
+
+        const rows=(d.vehicles||[]).map(v=>({
+          id:v.id,
+          driver_id:d.id,
+          name:v.name,
+          max_passengers:Number(v.max||1),
+          fare:Number(v.fare||0),
+          travel_hours:Number(v.travelHours||1)
+        }));
+
+        if(rows.length){
+          const {error:ve}=await jrDB.from('vehicles').insert(rows);
+          if(ve) throw ve;
+        }
+      }
+      await jrLoadDatabase();
+    }catch(err){
+      console.error(err);
+      alert('Driver/vehicle database save error: '+err.message);
+    }
+  })();
+};
+
+/* Driver deletion must also delete it from Supabase. */
+window.deleteDriver = function(id){
+  if(B.some(x=>x.driverId===id&&!['completed','cancelled','rejected'].includes(x.status))){
+    alert('This driver has active rides.');
+    return;
+  }
+  if(!confirm('Delete driver?')) return;
+
+  DRIVERS=DRIVERS.filter(x=>x.id!==id);
+  setRole();
+  updateVehicleOptions();
+
+  (async()=>{
+    const {error}=await jrDB.from('drivers').delete().eq('id',id);
+    if(error){
+      alert('Driver delete error: '+error.message);
+      await jrLoadDatabase();
+      return;
+    }
+    await jrLoadDatabase();
+  })();
+};
+
+/* Payment is a real row in payments, plus the booking paid total. */
+window.savePayment = async function(){
+  const b=B.find(x=>x.id===paymentBookingId);
+  const amount=Number($('paymentAmount').value);
+
+  if(!b || !amount || amount<=0){
+    alert('Enter payment amount.');
+    return;
+  }
+
+  const currentPaid=Number(b.paid||0);
+  const fare=Number(b.fare||0);
+
+  if(currentPaid+amount>fare){
+    alert('Payment cannot exceed fare.');
+    return;
+  }
+
+  try{
+    /* 1. Save the individual payment in Supabase */
+    const {error:paymentError}=await jrDB
+      .from('payments')
+      .insert({
+        booking_id:Number(b.id),
+        amount:amount
+      });
+
+    if(paymentError) throw paymentError;
+
+    /* 2. Update the booking total paid amount in Supabase */
+    const newPaid=currentPaid+amount;
+    const {error:bookingError}=await jrDB
+      .from('bookings')
+      .update({paid:newPaid})
+      .eq('id',Number(b.id));
+
+    if(bookingError) throw bookingError;
+
+    /* 3. Update the current page only after DB success */
+    b.paid=newPaid;
+    render();
+    setRole();
+    closePayment();
+
+    alert('Payment saved successfully.');
+  }catch(err){
+    console.error('Payment save error:',err);
+    alert('Payment database save error: '+err.message);
+  }
+};
+
+/* Restore backup directly into Supabase. */
+window.restoreData = function(e){
+  const f=e.target.files[0];
+  if(!f) return;
+  const r=new FileReader();
+
+  r.onload=async()=>{
+    try{
+      const d=JSON.parse(r.result);
+      if(!Array.isArray(d.bookings)||!Array.isArray(d.drivers)) throw new Error('Invalid backup');
+
+      if(!confirm('Restore backup to Supabase? Current database records with the same IDs will be replaced.')) return;
+
+      DRIVERS=d.drivers;
+      B=d.bookings;
+
+      await jrSaveBookings();
+
+      for(const dr of DRIVERS){
+        const {error:de}=await jrDB.from('drivers').upsert({
+          id:dr.id,name:dr.name,username:dr.username,password:dr.password
+        },{onConflict:'id'});
+        if(de) throw de;
+
+        await jrDB.from('vehicles').delete().eq('driver_id',dr.id);
+        const rows=(dr.vehicles||[]).map(v=>({
+          id:v.id,driver_id:dr.id,name:v.name,
+          max_passengers:Number(v.max||1),
+          fare:Number(v.fare||0),
+          travel_hours:Number(v.travelHours||1)
+        }));
+        if(rows.length){
+          const {error:ve}=await jrDB.from('vehicles').insert(rows);
+          if(ve) throw ve;
+        }
+      }
+
+      await jrLoadDatabase();
+      alert('Backup restored to Supabase.');
+    }catch(err){
+      alert('Restore error: '+err.message);
+    }
+  };
+  r.readAsText(f);
+};
+
+/* Load database after the original page initializes. */
+window.addEventListener('load',()=>{
+  setTimeout(jrLoadDatabase,100);
+});
+</script>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+/* JaffnaRide Live Location */
+const JR_MAP_DEFAULT=[9.6615,80.0255];let jrMap=null,jrLocationMarkers={},jrLocationWatch=null,jrLocationChannel=null;
+function jrLocationCardHTML(role){if(role==='driver')return `<div class="card" id="liveLocationCard"><h2>📍 My Live Location</h2><p class="muted">Allow location permission, then start sharing. Your current location will be visible on the JaffnaRide map.</p><div id="jrHttpsNotice" class="httpsNotice">Checking secure location access…</div><div class="locationButtons"><button id="jrStartBtn" class="success" onclick="jrStartLiveLocation()">▶ Start Live Location</button><button class="danger" onclick="jrStopLiveLocation()">■ Stop Live Location</button></div><div id="jrLocationStatus" class="locationStatus warn">Live location is OFF.</div><div id="jrLiveMap" class="liveLocationMap"></div></div>`;if(role==='admin')return `<div class="card" id="liveLocationCard"><h2>🗺️ Live Driver Locations</h2><p class="muted">Active driver locations update automatically.</p><div id="jrLocationStatus" class="locationStatus">Connecting to live locations…</div><div id="jrLiveMap" class="liveLocationMap"></div></div>`;return `<div class="card" id="liveLocationCard"><h2>🗺️ Driver Live Location</h2><p class="muted">When a driver is assigned to your booking and shares location, the live location appears here.</p><div id="jrLocationStatus" class="locationStatus">Waiting for an assigned driver…</div><div id="jrLiveMap" class="liveLocationMap"></div></div>`;}
+function jrSetLocationStatus(msg,cls=''){let e=document.getElementById('jrLocationStatus');if(e){e.className='locationStatus '+cls;e.textContent=msg;}}
+function jrEnsureMap(){if(!window.L)return;let e=document.getElementById('jrLiveMap');if(!e)return;if(!jrMap){jrMap=L.map(e).setView(JR_MAP_DEFAULT,10);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(jrMap);}setTimeout(()=>jrMap.invalidateSize(),100);}
+function jrClearMarkers(){Object.values(jrLocationMarkers).forEach(m=>{try{jrMap.removeLayer(m)}catch(e){}});jrLocationMarkers={};}
+function jrIcon(heading=0){return L.divIcon({className:'',html:'<div class=\"carMarker\" style=\"transform:rotate('+Number(heading||0)+'deg)\"><span>🚗</span></div>',iconSize:[42,42],iconAnchor:[21,21]});}
+async function jrLoadLiveLocations(){if(!jrMap||!window.jrDB)return;try{let {data,error}=await jrDB.from('driver_locations').select('*').eq('active',true);if(error)throw error;let rows=data||[];if(currentUser?.role==='customer'){let mine=(B||[]).filter(x=>(x.name===currentUser.name||x.phone===currentUser.phone)&&!['cancelled','rejected','completed'].includes(x.status)&&x.driverId).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));let ids=new Set(mine.map(x=>String(x.driverId)));rows=rows.filter(x=>ids.has(String(x.driver_id)));}jrClearMarkers();if(!rows.length){jrSetLocationStatus(currentUser?.role==='customer'?'No assigned driver is currently sharing live location.':'No drivers are currently sharing live location.','warn');return;}let bounds=[];rows.forEach(x=>{let lat=Number(x.latitude),lng=Number(x.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lng))return;let d=getDriver(String(x.driver_id))||getDriver(x.driver_id),name=d?.name||('Driver '+x.driver_id);let m=L.marker([lat,lng],{icon:jrIcon(Number(x.heading||0))}).addTo(jrMap);m.bindPopup('<b>🚗 '+esc(name)+'</b><br>Updated: '+esc(new Date(x.updated_at||Date.now()).toLocaleString())+'<br>Accuracy: '+Math.round(Number(x.accuracy||0))+' m');jrLocationMarkers[String(x.driver_id)]=m;bounds.push([lat,lng]);});if(bounds.length===1)jrMap.setView(bounds[0],14);else if(bounds.length)jrMap.fitBounds(bounds,{padding:[30,30],maxZoom:14});jrSetLocationStatus(rows.length+' active driver location'+(rows.length>1?'s':'')+' on map.','ok');}catch(err){console.error(err);jrSetLocationStatus('Live location database error: '+err.message,'err');}}
+async function jrStartLiveLocation(){
+  if(!currentUser||currentUser.role!=='driver')return alert('Driver login required.');
+  if(!window.isSecureContext && location.hostname!=='localhost' && location.hostname!=='127.0.0.1'){
+    jrSetLocationStatus('🔒 Location requires HTTPS. Open this JaffnaRide page from an HTTPS website.','err');
+    return alert('Live location needs HTTPS. This local HTML file cannot request GPS permission reliably.');
+  }
+  if(!navigator.geolocation)return alert('This browser does not support GPS location.');
+  if(jrLocationWatch!==null)navigator.geolocation.clearWatch(jrLocationWatch);
+  jrSetLocationStatus('Requesting location permission…','warn');
+  try{if(navigator.permissions?.query){let q=await navigator.permissions.query({name:'geolocation'});if(q.state==='denied'){jrSetLocationStatus('❌ Location is blocked. Chrome Site settings → Location → Allow.','err');return;}}}catch(e){}
+  jrLocationWatch=navigator.geolocation.watchPosition(async p=>{
+    try{
+      let active=(B||[]).filter(x=>x.driverId===currentUser.driverId&&['assigned','started'].includes(x.status)).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))[0];
+      let heading=Number.isFinite(Number(p.coords.heading))?Number(p.coords.heading):0;
+      let row={driver_id:String(currentUser.driverId),latitude:p.coords.latitude,longitude:p.coords.longitude,accuracy:Number(p.coords.accuracy||0),heading,active:true,booking_id:active?Number(active.id):null,updated_at:new Date().toISOString()};
+      let {error}=await jrDB.from('driver_locations').upsert(row,{onConflict:'driver_id'});if(error)throw error;
+      jrSetLocationStatus('🟢 Live location sharing ON · Accuracy '+Math.round(p.coords.accuracy||0)+' m','ok');
+      jrEnsureMap();
+      let old=jrLocationMarkers[String(currentUser.driverId)];
+      if(old){old.setLatLng([p.coords.latitude,p.coords.longitude]);old.setIcon(jrIcon(heading));}
+      else{let m=L.marker([p.coords.latitude,p.coords.longitude],{icon:jrIcon(heading)}).addTo(jrMap);m.bindPopup('<b>🚗 '+esc(currentUser.name)+'</b><br>Your current location');jrLocationMarkers[String(currentUser.driverId)]=m;}
+      jrMap.setView([p.coords.latitude,p.coords.longitude],15);
+    }catch(err){console.error(err);jrSetLocationStatus('Location database error: '+err.message,'err');}
+  },err=>{
+    let msg=err.code===1?'❌ Location permission denied. Chrome → Site settings → Location → Allow.':err.code===2?'📍 Location is unavailable. Turn on phone Location/GPS.':'⏱️ Location request timed out. Try again.';
+    jrSetLocationStatus(msg,'err');
+  },{enableHighAccuracy:true,maximumAge:3000,timeout:20000});
+}
+async function jrStopLiveLocation(){if(jrLocationWatch!==null){navigator.geolocation.clearWatch(jrLocationWatch);jrLocationWatch=null;}if(currentUser?.role==='driver')try{await jrDB.from('driver_locations').update({active:false,updated_at:new Date().toISOString()}).eq('driver_id',String(currentUser.driverId));}catch(e){}jrSetLocationStatus('Live location is OFF.','warn');}
+function jrSubscribeLocations(){if(jrLocationChannel)return;jrLocationChannel=jrDB.channel('jr-driver-location-live').on('postgres_changes',{event:'*',schema:'public',table:'driver_locations'},()=>jrLoadLiveLocations()).subscribe();}
+
+function jrCheckLocationAccess(){
+  let n=document.getElementById('jrHttpsNotice'),b=document.getElementById('jrStartBtn');
+  if(!n)return;
+  let secure=window.isSecureContext || location.hostname==='localhost' || location.hostname==='127.0.0.1';
+  if(secure){n.textContent='🔐 Secure connection ready. Tap Start Live Location and allow Location.';n.style.background='#e7f7ee';n.style.color='#176b3a';if(b)b.disabled=false;}
+  else{n.textContent='🔒 HTTPS required for browser GPS. Local content:// HTML cannot reliably request location.';if(b)b.disabled=false;}
+}
+function jrRenderLocationUI(){let role=currentUser?.role,main=document.querySelector('main'),card=document.getElementById('liveLocationCard');if(!main)return;if(!role){if(card)card.remove();return;}if(!card){let w=document.createElement('div');w.innerHTML=jrLocationCardHTML(role);main.appendChild(w.firstElementChild);}jrCheckLocationAccess();jrEnsureMap();jrSubscribeLocations();if(role!=='driver')jrLoadLiveLocations();}
+const jrOriginalSetRole=window.setRole;window.setRole=function(){jrOriginalSetRole();setTimeout(jrRenderLocationUI,50);};
+window.addEventListener('load',()=>setTimeout(()=>{jrRenderLocationUI();jrSubscribeLocations();if(currentUser?.role!=='driver')jrLoadLiveLocations();},700));
+setInterval(()=>{if(currentUser?.role&&document.getElementById('liveLocationCard'))jrLoadLiveLocations();},10000);
+</script>
+</body></html>
