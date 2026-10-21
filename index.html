@@ -869,20 +869,31 @@ function jrEnsureMap(){
   if(!window.L) return;
   const el=document.getElementById('jrLiveMap');
   if(!el) return;
-  
-  // Leaflet default icon path fix (marker hide aagama irukka)
+
+  // Keep the existing Leaflet map while GPS updates arrive. Recreating it
+  // on every location update removes the marker and makes it disappear.
+  if(jrMap){
+    try{
+      if(jrMap.getContainer()===el){
+        setTimeout(()=>{try{jrMap && jrMap.invalidateSize()}catch(e){}},100);
+        return;
+      }
+      jrMap.remove();
+    }catch(e){}
+    jrMap=null;
+    jrLocationMarkers={};
+  }
+
   delete L.Icon.Default.prototype._getIconUrl;
   L.Icon.Default.mergeOptions({
     iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
     iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
     shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
   });
-
-  if(jrMap){try{jrMap.remove()}catch(e){}}
-  jrMap=L.map(el, {zoomControl: false}).setView(JR_MAP_DEFAULT,10);
-  L.control.zoom({position:'topright'}).addTo(jrMap); // zoom button mela irukka
+  jrMap=L.map(el, {zoomControl:false}).setView(JR_MAP_DEFAULT,10);
+  L.control.zoom({position:'topright'}).addTo(jrMap);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(jrMap);
-  setTimeout(()=>jrMap.invalidateSize(),150);
+  setTimeout(()=>{try{jrMap && jrMap.invalidateSize()}catch(e){}},150);
 }
 
 function jrIcon(h){
@@ -1030,11 +1041,11 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 document.addEventListener('visibilitychange', () => {
-  if(document.visibilityState === 'hidden' && currentUser?.role==='driver' && currentUser.driverId){
-    jrDB.from('driver_locations').update({active:false, updated_at:new Date().toISOString()}).eq('driver_id', String(currentUser.driverId));
-  }
+  // Do not switch live location OFF when Android temporarily hides the page.
+  // Keep the driver marked active while the ride's GPS watcher is running.
   if(document.visibilityState === 'visible' && currentUser?.role==='driver' && jrLocationWatch !== null && currentUser.driverId){
     jrDB.from('driver_locations').update({active:true, updated_at:new Date().toISOString()}).eq('driver_id', String(currentUser.driverId));
+    jrLoadLiveLocations();
   }
 });
 
