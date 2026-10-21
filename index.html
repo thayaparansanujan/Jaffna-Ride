@@ -13,8 +13,6 @@
 html,body{margin:0;padding:0}
 body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
 img{max-width:100%}a{color:var(--blue);text-decoration:none}
-
-/* ====== TOP BAR ====== */
 .topbar{position:sticky;top:0;z-index:150;background:linear-gradient(135deg,var(--brand) 0%,var(--brand2) 100%);color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(0,0,0,.15);height:60px}
 .topbar-left{display:flex;align-items:center;gap:12px}
 .menuBtn{width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:all .15s}
@@ -22,8 +20,6 @@ img{max-width:100%}a{color:var(--blue);text-decoration:none}
 .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:-.3px}
 .brandLogo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#0ea05e,#087a4b);display:flex;align-items:center;justify-content:center;font-size:18px}
 #roleBadge{font-size:11px;background:rgba(255,255,255,.15);color:#fff;padding:6px 12px;border-radius:20px;font-weight:600;letter-spacing:.5px;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2)}
-
-/* ====== SIDEBAR ====== */
 .sidebar{position:fixed;top:60px;left:0;bottom:0;width:var(--sidebar-w);background:#fff;border-right:1px solid var(--line);padding:16px 12px;overflow-y:auto;z-index:140;transform:translateX(-100%);transition:transform .25s ease;box-shadow:4px 0 20px rgba(0,0,0,.05)}
 .sidebar.open{transform:translateX(0)}
 .sidebar-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;color:var(--ink);font-weight:600;font-size:14px;cursor:pointer;transition:all .15s;margin-bottom:4px;border:0;background:transparent;width:100%;text-align:left}
@@ -31,24 +27,16 @@ img{max-width:100%}a{color:var(--blue);text-decoration:none}
 .sidebar-item.active{background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;box-shadow:0 4px 12px rgba(8,120,232,.3)}
 .sidebar-item .ico{font-size:18px;width:22px;text-align:center}
 .sidebar-section{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:14px 14px 6px;margin-top:8px}
-
-/* Overlay for mobile */
 .sidebar-overlay{position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:130;opacity:0;pointer-events:none;transition:opacity .2s}
 .sidebar-overlay.show{opacity:1;pointer-events:auto}
-
-/* ====== MAIN ====== */
 main{max-width:1080px;margin:0 auto;padding:20px 16px 40px;transition:margin-left .25s ease}
 .page{display:none}
 .page.active{display:block;animation:fadeIn .2s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .pageTitle{font-size:24px;font-weight:800;letter-spacing:-.5px;margin:0 0 6px}
 .pageSubtitle{color:var(--muted);font-size:14px;margin:0 0 20px}
-
-/* Cards */
 .card{background:var(--card);padding:20px;border-radius:var(--radius);margin-bottom:16px;box-shadow:var(--shadow);border:1px solid rgba(15,23,42,.04)}
 .card h2{margin:0 0 16px;font-size:18px;font-weight:700;letter-spacing:-.3px}
-
-/* Forms */
 label{font-weight:600;font-size:13px;color:#334155;display:block;margin-bottom:6px}
 input,select,textarea{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;font-size:15px;font-family:inherit;color:var(--ink);background:#fff;transition:all .15s;outline:none}
 input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(8,120,232,.1)}
@@ -57,8 +45,6 @@ input::placeholder{color:#94a3b8}
 @media(max-width:600px){.formGrid{grid-template-columns:1fr}}
 .formRow{margin-bottom:14px}
 .formRow:last-child{margin-bottom:0}
-
-/* Buttons */
 button{border:0;border-radius:10px;padding:12px 18px;font-weight:600;font-size:15px;font-family:inherit;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:8px}
 button:disabled{opacity:.6;cursor:not-allowed}
 .primary{background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff}
@@ -71,16 +57,12 @@ button:disabled{opacity:.6;cursor:not-allowed}
 .warning{background:var(--warn);color:#fff}
 .btn-block{width:100%}.btn-sm{padding:8px 14px;font-size:13px;border-radius:8px}.btn-auto{width:auto}
 .muted{color:var(--muted);font-size:13px}
-
-/* Login */
 #loginPage{display:flex;justify-content:center;align-items:flex-start;min-height:calc(100vh - 120px);padding-top:40px}
 .loginBox{width:100%;max-width:440px}
 .loginBox h2{text-align:center;font-size:24px;margin-bottom:24px}
 .roleTabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:#f1f5f9;padding:4px;border-radius:12px;margin-bottom:20px}
 .roleTabs button{flex:1;background:transparent;padding:10px 8px;font-size:14px;color:var(--ink);border-radius:9px;font-weight:600}
 .roleTabs button.active{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08);font-weight:700}
-
-/* Ride cards */
 .ride{padding:16px 18px;margin-top:12px;border-radius:12px;background:#fff;border:1.5px solid var(--line);transition:all .15s}
 .ride:hover{border-color:#cbd5e1;box-shadow:0 1px 3px rgba(15,23,42,.06)}
 .ride .tag{float:right;padding:5px 11px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.5px;background:#f1f5f9;color:#475569}
@@ -92,29 +74,17 @@ button:disabled{opacity:.6;cursor:not-allowed}
 .ride p{margin:6px 0;font-size:14px}.ride b{color:var(--ink)}
 .rowActions{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
 @media(max-width:600px){.rowActions{grid-template-columns:1fr}}
-
-/* Stats */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
 @media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}}
 .stat{padding:18px 16px;border-radius:12px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border:1px solid var(--line);font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
 .stat b{display:block;font-size:24px;margin-top:6px;color:var(--ink);font-weight:800;letter-spacing:-.5px}
-
-/* Modal */
 .modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:9999;padding:20px;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
 .modal.show{display:flex}
 .modalBox{width:min(720px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:20px;padding:24px;box-shadow:var(--shadow-lg)}
 .modalHead{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
 .modalHead h2{margin:0;font-size:20px}
 .close{width:36px!important;height:36px;padding:0!important;background:#f1f5f9!important;color:var(--ink)!important;border-radius:10px!important;font-size:20px;margin:0!important}
-
-/* Vehicle boxes */
 .vehicleBox{border:1.5px solid var(--line);border-radius:12px;padding:14px;margin-top:10px;background:#fafbfc}
-
-/* Filter bar */
-.filterbar{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:12px}
-@media(max-width:700px){.filterbar{grid-template-columns:1fr}}
-
-/* ====== BOOKING UI ====== */
 .bookingHeader{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
 .bookingHeader h1{margin:4px 0 6px;font-size:26px;font-weight:800;letter-spacing:-.6px}
 .eyebrow{font-size:11px;font-weight:800;letter-spacing:2px;color:var(--accent);text-transform:uppercase}
@@ -127,7 +97,7 @@ button:disabled{opacity:.6;cursor:not-allowed}
 .locationText{display:flex;flex-direction:column;gap:2px}
 .locationText small{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
 .locationText b{font-size:15px;font-weight:700}
-.inputCard{padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;transition:all .15s;margin-bottom:0}
+.inputCard{padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;transition:all .15s}
 .inputCard:focus-within{border-color:var(--blue);box-shadow:0 0 0 3px rgba(8,120,232,.08)}
 .inputCard label{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
 .inputCard input{border:0;padding:6px 0 0;margin:0;background:transparent;font-weight:600;font-size:15px;box-shadow:none!important}
@@ -148,8 +118,6 @@ button:disabled{opacity:.6;cursor:not-allowed}
 @media(max-width:600px){.fareModern{flex-direction:column;align-items:flex-start;padding:16px}.arrivalBox{border-left:0;border-top:1px solid #bbf7d0;padding-left:0;padding-top:12px;width:100%;text-align:left}.passengerRow{flex-direction:column;align-items:flex-start}.passengerRow select{width:100%}}
 .bookBtn{background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:14px;font-size:17px;padding:16px;font-weight:700;box-shadow:0 8px 20px rgba(8,122,75,.3);margin-top:16px;width:100%;color:#fff;border:0}
 .bookBtn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 28px rgba(8,122,75,.4)}
-
-/* Return rides */
 .returnBox{padding:16px;border:2px dashed var(--warn);border-radius:14px;background:linear-gradient(135deg,#fffbeb,#fef3c7);margin-top:16px}
 .returnBadge{display:inline-block;padding:4px 10px;border-radius:12px;background:linear-gradient(135deg,#d97706,#f59e0b);color:#fff;font-size:11px;font-weight:800;margin-left:8px;letter-spacing:.5px}
 .returnRide{padding:14px;margin-top:10px;border:1.5px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;transition:all .2s}
@@ -159,15 +127,12 @@ button:disabled{opacity:.6;cursor:not-allowed}
 .returnRide .cstrike{text-decoration:line-through;color:#94a3b8;margin-right:8px;font-size:14px}
 .returnRide .cnew{color:var(--accent);font-weight:800;font-size:16px}
 .discountTag{background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:800;margin-left:8px;letter-spacing:.5px}
-
-/* Live location */
 .liveLocationMap{height:380px;border-radius:14px;overflow:hidden;border:1.5px solid var(--line);margin-top:12px}
 .locationStatus{padding:12px 14px;border-radius:10px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;margin-top:12px;font-size:13px;font-weight:500}
 .locationStatus.ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
 .locationStatus.warn{background:#fffbeb;border-color:#fde68a;color:#92400e}
 .locationStatus.err{background:#fef2f2;border-color:#fecaca;color:#991b1b}
 .carMarker{width:44px;height:44px;border-radius:50%;background:#fff;border:3px solid var(--blue);box-shadow:0 4px 12px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:24px;transform-origin:center center}
-
 .hidden{display:none!important}
 #loadingOverlay{position:fixed;inset:0;background:rgba(255,255,255,.9);z-index:99999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px}
 #loadingOverlay.show{display:flex}
@@ -177,8 +142,6 @@ button:disabled{opacity:.6;cursor:not-allowed}
 #toast.show{transform:translateX(-50%) translateY(0)}
 #toast.ok{background:linear-gradient(135deg,#059669,#10b981)}
 #toast.err{background:linear-gradient(135deg,#dc2626,#ef4444)}
-
-/* Desktop — sidebar always visible */
 @media(min-width:900px){
   .menuBtn{display:none}
   .sidebar{transform:translateX(0);top:60px}
@@ -206,8 +169,6 @@ button:disabled{opacity:.6;cursor:not-allowed}
 
 <main>
   <div class="contentWrap">
-
-    <!-- ========== LOGIN PAGE ========== -->
     <div class="page active" id="page-login">
       <div id="loginPage">
         <div class="card loginBox">
@@ -232,27 +193,23 @@ button:disabled{opacity:.6;cursor:not-allowed}
       </div>
     </div>
 
-    <!-- ========== DASHBOARD PAGE ========== -->
     <div class="page" id="page-dashboard">
       <h1 class="pageTitle" id="dashTitle">Dashboard</h1>
       <p class="pageSubtitle" id="dashSubtitle"></p>
       <div id="dashContent"></div>
     </div>
 
-    <!-- ========== BOOKING PAGE ========== -->
     <div class="page" id="page-book">
       <div class="card">
         <div class="bookingHeader">
           <div><div class="eyebrow">JaffnaRide Premium</div><h1>Book a ride</h1><p class="muted" style="margin:0">Choose route, time and vehicle.</p></div>
           <div class="rideIcon">🚐</div>
         </div>
-
         <div class="locationPanel">
           <div class="locationRow"><span class="dot pickupDot"></span><div class="locationText"><small>Pickup</small><b id="pickupLabel">Jaffna</b></div></div>
           <div class="routeLine"></div>
           <div class="locationRow"><span class="dot dropDot"></span><div class="locationText"><small>Drop-off</small><b id="dropLabel">Bandaranaike Airport</b></div></div>
         </div>
-
         <div class="formRow">
           <label>Trip route</label>
           <select id="route">
@@ -260,51 +217,43 @@ button:disabled{opacity:.6;cursor:not-allowed}
             <option value="back">Bandaranaike Airport → Jaffna</option>
           </select>
         </div>
-
         <div class="formGrid">
           <div class="inputCard"><label>Date</label><input id="date" type="date"></div>
           <div class="inputCard"><label>Pickup time</label><input id="time" type="time"></div>
           <div class="inputCard"><label>Your name</label><input id="name" placeholder="Full name"></div>
           <div class="inputCard"><label>Phone</label><input id="phone" placeholder="+94 7X XXX XXXX"></div>
         </div>
-
         <div class="vehiclePicker" style="margin-top:14px">
           <div class="sectionTitle"><b style="font-size:14px">Choose vehicle</b><span class="muted">Fare below</span></div>
           <select id="vehicleSelect"><option value="">Loading vehicles…</option></select>
         </div>
-
         <div class="passengerRow" style="margin-top:12px">
           <div><label style="margin:0">Passengers</label><p class="muted" style="margin:4px 0 0">How many people?</p></div>
           <select id="pass"><option value="">Select vehicle first</option></select>
         </div>
         <div id="vehicleCapacityNotice" class="notice" style="margin-top:12px">Select a vehicle.</div>
-
         <div id="returnRideNotice" class="returnBox" style="display:none">
           <div class="sectionTitle"><b>🎉 Return rides <span class="returnBadge">50% OFF</span></b></div>
           <p class="muted" style="margin:6px 0 10px;font-size:13px">Vans already at airport. Return trip at half price!</p>
           <div id="returnRideList"></div>
         </div>
-
         <div class="fareModern">
           <div><span class="muted">Estimated fare</span><div class="price" id="farePreview">Rs. 0</div></div>
           <div class="arrivalBox"><span>Arrival</span><b id="arrivalPreview">—</b></div>
         </div>
-
         <button id="bookBtn" class="bookBtn">Book Now →</button>
       </div>
     </div>
 
-    <!-- ========== BOOKINGS PAGE ========== -->
     <div class="page" id="page-bookings">
       <div class="sectionTitle" style="margin-bottom:6px">
-        <h1 class="pageTitle" style="margin:0">My Bookings</h1>
+        <h1 class="pageTitle" style="margin:0" id="bookingsTitle">My Bookings</h1>
         <label style="display:flex;align-items:center;gap:8px;font-size:12px;margin:0;font-weight:600">Date <input id="customerDateFilter" type="date" style="margin:0;width:auto;padding:8px 10px;font-size:13px"></label>
       </div>
-      <p class="pageSubtitle">All your bookings for the selected date.</p>
+      <p class="pageSubtitle" id="bookingsSubtitle">All bookings for the selected date.</p>
       <div id="records"></div>
     </div>
 
-    <!-- ========== ADMIN: DRIVERS PAGE ========== -->
     <div class="page" id="page-drivers">
       <div class="sectionTitle" style="margin-bottom:6px">
         <h1 class="pageTitle" style="margin:0">Drivers & Vehicles</h1>
@@ -314,7 +263,6 @@ button:disabled{opacity:.6;cursor:not-allowed}
       <div id="driversContent"></div>
     </div>
 
-    <!-- ========== ADMIN: REPORTS PAGE ========== -->
     <div class="page" id="page-reports">
       <h1 class="pageTitle">Reports & Backup</h1>
       <p class="pageSubtitle">Search bookings, view business summary, export data.</p>
@@ -342,17 +290,14 @@ button:disabled{opacity:.6;cursor:not-allowed}
       </div>
     </div>
 
-    <!-- ========== LIVE LOCATION PAGE ========== -->
     <div class="page" id="page-location">
       <h1 class="pageTitle" id="locationPageTitle">Live Location</h1>
       <p class="pageSubtitle" id="locationPageSubtitle"></p>
       <div class="card" id="liveLocationCard"></div>
     </div>
-
   </div>
 </main>
 
-<!-- ========== MODALS ========== -->
 <div id="registerModal" class="modal"><div class="modalBox">
   <div class="modalHead"><h2>Create Account</h2><button class="close" onclick="closeRegister()">✕</button></div>
   <div class="formRow"><label>Full Name</label><input id="regName" placeholder="Your name"></div>
@@ -422,7 +367,6 @@ function isConflict(x,ignoreId){let a=mins(x.time),b=a+Math.round(Number(x.trave
 function statusClass(s){return ({pending:'pending',confirmed:'confirmed',assigned:'confirmed',started:'started',completed:'completed',cancelled:'cancelled',rejected:'rejected'}[s]||'pending')}
 function statusLabel(s){return ({pending:'PENDING ADMIN',confirmed:'CONFIRMED',assigned:'DRIVER ASSIGNED',started:'RIDE STARTED',completed:'COMPLETED',cancelled:'CANCELLED',rejected:'REJECTED'}[s]||s)}
 
-/* ---------- sidebar ---------- */
 function toggleSidebar(){$('sidebar').classList.toggle('open');$('sidebarOverlay').classList.toggle('show');}
 function closeSidebar(){$('sidebar').classList.remove('open');$('sidebarOverlay').classList.remove('show');}
 
@@ -461,11 +405,11 @@ function navigateTo(page){
   if(target) target.classList.add('active');
   if(window.innerWidth<900) closeSidebar();
   buildSidebar();
+  refreshCurrentPage();
   window.scrollTo({top:0,behavior:'smooth'});
   setTimeout(()=>{if(page==='location')jrRenderLocationUI();},50);
 }
 
-/* ---------- data mapping ---------- */
 function jrDriverFromRow(d,vehicleRows){return{id:d.id,name:d.name,username:d.username,password:d.password,vehicles:(vehicleRows||[]).filter(v=>String(v.driver_id)===String(d.id)).map(v=>({id:v.id,name:v.name,max:Number(v.max_passengers),fare:Number(v.fare||0),travelHours:Number(v.travel_hours||1)}))};}
 function jrBookingFromRow(x){return{id:Number(x.id),customerId:x.customer_id||null,route:x.route,date:x.ride_date,time:String(x.start_time||'').slice(0,5),arrival:x.arrival_time?String(x.arrival_time).slice(0,5):'',name:x.customer_name,phone:x.phone,passengers:Number(x.passengers||1),vehicleId:x.vehicle_id,vehicleName:x.vehicle_name,fare:Number(x.fare||0),travelHours:Number(x.travel_hours||1),paid:Number(x.paid||0),status:x.status,driverId:x.driver_id,cancelReason:x.cancel_reason,startedAt:x.started_at||null,completedAt:x.completed_at||null,createdAt:x.created_at,isReturn:!!x.is_return,originalFare:x.original_fare!=null?Number(x.original_fare):null,returnOfBookingId:x.return_of_booking_id!=null?Number(x.return_of_booking_id):null};}
 function jrBookingToRow(x){return{id:Number(x.id),customer_id:x.customerId||null,route:x.route,ride_date:x.date,start_time:x.time,arrival_time:x.arrival||null,customer_name:x.name,phone:x.phone,passengers:Number(x.passengers||1),vehicle_id:x.vehicleId||null,vehicle_name:x.vehicleName||'',fare:Number(x.fare||0),travel_hours:Number(x.travelHours||1),paid:Number(x.paid||0),status:x.status||'pending',driver_id:x.driverId||null,cancel_reason:x.cancelReason||null,started_at:x.startedAt||null,completed_at:x.completedAt||null,created_at:x.createdAt||new Date().toISOString(),is_return:!!x.isReturn,original_fare:x.originalFare!=null?Number(x.originalFare):null,return_of_booking_id:x.returnOfBookingId!=null?Number(x.returnOfBookingId):null};}
@@ -559,7 +503,6 @@ function refreshCurrentPage(){
   else if(currentPage==='reports') renderReports();
 }
 
-/* ---------- booking UI ---------- */
 (function initDate(){$('date').value=localDateStr();})();
 
 function updateVehicleOptions(){
@@ -644,7 +587,6 @@ $('date').addEventListener('change',findReturnRides);
 $('pass').addEventListener('change',findReturnRides);
 $('route').addEventListener('change',()=>{let back=$('route').value==='back';$('pickupLabel').textContent=back?'Bandaranaike Airport':'Jaffna';$('dropLabel').textContent=back?'Jaffna':'Bandaranaike Airport';clearReturnRide();findReturnRides();});
 
-/* ---------- info card ---------- */
 function customerBookings(){
   if(currentUser?.role!=='customer')return[];
   const filter=$('customerDateFilter')?.value||'',cid=String(currentUser.customerId||'');
@@ -654,24 +596,48 @@ function customerBookings(){
 function info(x,adminMode){
   const d=x.driverId?getDriver(x.driverId):null;
   const retTag=x.isReturn?'<span class="discountTag">50% OFF</span>':'';
+  const isAdmin = adminMode === true || currentUser?.role === 'admin';
+
   let html='<div class="ride"><span class="tag '+statusClass(x.status)+'">'+esc(statusLabel(x.status))+'</span><b>'+(x.route==='out'?'Jaffna → Bandaranaike Airport':'Bandaranaike Airport → Jaffna')+'</b>'+retTag+'<p>📅 '+esc(x.date)+' · 🕐 Start: <b>'+esc(x.time)+'</b> · 🏁 Arrival: <b>'+esc(x.arrival)+'</b></p><p>👤 '+esc(x.name)+' · 👥 '+esc(x.passengers)+' · 📞 '+esc(x.phone)+'</p>';
-  if(x.isReturn&&x.originalFare){html+='<p>🚐 <b>'+esc(x.vehicleName)+'</b> · 💰 <span style="text-decoration:line-through;color:#94a3b8">Rs.'+Number(x.originalFare||0).toLocaleString()+'</span> <b style="color:var(--accent)">Rs.'+Number(x.fare||0).toLocaleString()+'</b> · Paid: <b>Rs.'+Number(x.paid||0).toLocaleString()+'</b></p>';}
-  else{html+='<p>🚐 <b>'+esc(x.vehicleName)+'</b> · 💰 <b>Rs.'+Number(x.fare||0).toLocaleString()+'</b> · Paid: <b>Rs.'+Number(x.paid||0).toLocaleString()+'</b></p>';}
+
+  if(x.isReturn&&x.originalFare){
+    html+='<p>🚐 <b>'+esc(x.vehicleName)+'</b> · 💰 <span style="text-decoration:line-through;color:#94a3b8">Rs.'+Number(x.originalFare||0).toLocaleString()+'</span> <b style="color:var(--accent)">Rs.'+Number(x.fare||0).toLocaleString()+'</b> · Paid: <b>Rs.'+Number(x.paid||0).toLocaleString()+'</b></p>';
+  } else {
+    html+='<p>🚐 <b>'+esc(x.vehicleName)+'</b> · 💰 <b>Rs.'+Number(x.fare||0).toLocaleString()+'</b> · Paid: <b>Rs.'+Number(x.paid||0).toLocaleString()+'</b></p>';
+  }
+
   html+='<p>Driver: <b>'+esc(d?.name||'Not assigned')+'</b></p>';
   if(x.returnOfBookingId) html+='<p class="muted" style="font-size:12px">↩ Return of #'+esc(x.returnOfBookingId)+'</p>';
   if(x.cancelReason) html+='<p class="muted" style="font-size:12px">Cancellation: '+esc(x.cancelReason)+'</p>';
-  if(adminMode){
-    if(x.status==='pending') html+='<div class="rowActions"><button class="primary btn-sm" onclick="approveBooking('+x.id+')">Confirm</button><button class="danger btn-sm" onclick="rejectBooking('+x.id+')">Reject</button></div>';
-    if(['confirmed','assigned'].includes(x.status)) html+='<button class="primary btn-sm btn-block" onclick="openAssign('+x.id+')" style="margin-top:8px">'+(x.driverId?'Change Driver':'Assign Driver')+'</button>';
-    if(!['cancelled','rejected'].includes(x.status)) html+='<button class="secondary btn-sm btn-block" onclick="openPayment('+x.id+')" style="margin-top:8px">Add Payment</button>';
-    if(!['cancelled','rejected','completed'].includes(x.status)) html+='<button class="danger btn-sm btn-block" onclick="cancelBooking('+x.id+')" style="margin-top:8px">Cancel</button>';
+
+  if(isAdmin){
+    let adminButtons='';
+    if(x.status==='pending'){
+      adminButtons+='<button class="primary btn-sm" onclick="approveBooking('+x.id+')" style="background:#0878e8">✅ Confirm</button>';
+      adminButtons+='<button class="danger btn-sm" onclick="rejectBooking('+x.id+')">❌ Reject</button>';
+    }
+    if(['confirmed','assigned'].includes(x.status)){
+      adminButtons+='<button class="primary btn-sm" onclick="openAssign('+x.id+')" style="background:#d97706">👨‍✈️ '+(x.driverId?'Change Driver':'Assign Driver')+'</button>';
+    }
+    if(!['cancelled','rejected'].includes(x.status)){
+      adminButtons+='<button class="success btn-sm" onclick="openPayment('+x.id+')">💰 Add Payment</button>';
+    }
+    if(!['cancelled','rejected','completed'].includes(x.status)){
+      adminButtons+='<button class="danger btn-sm" onclick="cancelBooking('+x.id+')">🚫 Cancel</button>';
+    }
+    if(adminButtons){
+      html+='<div class="rowActions" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">'+adminButtons+'</div>';
+    }
+  } else if(currentUser?.role==='customer'){
+    const isMine=customerBookings().some(m=>String(m.id)===String(x.id));
+    if(isMine && !['completed','cancelled','rejected'].includes(x.status)){
+      html+='<button class="danger btn-sm btn-block" onclick="customerCancel('+x.id+')" style="margin-top:8px">Cancel My Booking</button>';
+    }
   }
-  const isMine=customerBookings().some(m=>String(m.id)===String(x.id));
-  if(currentUser?.role==='customer'&&isMine&&!['completed','cancelled','rejected'].includes(x.status)){html+='<button class="danger btn-sm btn-block" onclick="customerCancel('+x.id+')" style="margin-top:8px">Cancel My Booking</button>';}
-  html+='</div>';return html;
+  html+='</div>';
+  return html;
 }
 
-/* ---------- page renderers ---------- */
 function renderDashboard(){
   const role=currentUser?.role;
   if(role==='admin'){$('dashTitle').textContent='Admin Dashboard';$('dashSubtitle').textContent='Overview of bookings and operations';}
@@ -684,28 +650,38 @@ function renderDashboard(){
     $('dashContent').innerHTML='<div class="stats"><div class="stat">Bookings<b>'+B.length+'</b></div><div class="stat">Pending<b>'+pending.length+'</b></div><div class="stat">Active<b>'+active.length+'</b></div><div class="stat">Collected<b>Rs.'+income.toLocaleString()+'</b></div></div><div class="card"><h2>Recent Bookings</h2>'+(B.length?B.slice().reverse().slice(0,5).map(x=>info(x,true)).join(''):'<p class="muted">No bookings yet.</p>')+'</div>';
   } else if(role==='driver'){
     const mine=B.filter(x=>String(x.driverId)===String(currentUser.driverId));
-    $('dashContent').innerHTML='<div class="stats"><div class="stat">Total<b>'+mine.length+'</b></div><div class="stat">Assigned<b>'+mine.filter(x=>x.status==='assigned').length+'</b></div><div class="stat">Started<b>'+mine.filter(x=>x.status==='started').length+'</b></div><div class="stat">Completed<b>'+mine.filter(x=>x.status==='completed').length+'</b></div></div><div class="card"><h2>My Rides</h2>'+(mine.length?mine.slice().reverse().map(x=>{let h=info(x,false);if(x.status==='assigned')h+='<button class="primary btn-sm btn-block" onclick="startRide('+x.id+')" style="margin-top:8px">Start Ride</button>';if(x.status==='started')h+='<button class="success btn-sm btn-block" onclick="completeRide('+x.id+')" style="margin-top:8px">Complete Ride</button>';return h;}).join(''):'<p class="muted">No rides assigned.</p>')+'</div>';
+    $('dashContent').innerHTML='<div class="stats"><div class="stat">Total<b>'+mine.length+'</b></div><div class="stat">Assigned<b>'+mine.filter(x=>x.status==='assigned').length+'</b></div><div class="stat">Started<b>'+mine.filter(x=>x.status==='started').length+'</b></div><div class="stat">Completed<b>'+mine.filter(x=>x.status==='completed').length+'</b></div></div><div class="card"><h2>My Rides</h2>'+(mine.length?mine.slice().reverse().map(x=>{let h=info(x,false);if(x.status==='assigned')h+='<button class="primary btn-sm btn-block" onclick="startRide('+x.id+')" style="margin-top:8px">▶ Start Ride</button>';if(x.status==='started')h+='<button class="success btn-sm btn-block" onclick="completeRide('+x.id+')" style="margin-top:8px">✅ Complete Ride</button>';return h;}).join(''):'<p class="muted">No rides assigned.</p>')+'</div>';
   } else {
     const mine=customerBookings();
     $('dashContent').innerHTML='<div class="stats"><div class="stat">Total<b>'+mine.length+'</b></div><div class="stat">Pending<b>'+mine.filter(x=>x.status==='pending').length+'</b></div><div class="stat">Active<b>'+mine.filter(x=>['confirmed','assigned','started'].includes(x.status)).length+'</b></div><div class="stat">Completed<b>'+mine.filter(x=>x.status==='completed').length+'</b></div></div><div class="card"><h2>Quick Actions</h2><div class="rowActions"><button class="primary btn-sm" onclick="navigateTo(\'book\')">🚐 Book a Ride</button><button class="secondary btn-sm" onclick="navigateTo(\'bookings\')">📋 My Bookings</button></div></div>';
   }
 }
+
 function renderBookings(){
-  const list=currentUser?.role==='customer'?customerBookings():B.slice().reverse();
-  $('records').innerHTML=list.map(x=>info(x,currentUser?.role==='admin')).join('')||'<p class="muted">No bookings for this date.</p>';
-  $('page-bookings').querySelector('.pageTitle').textContent=currentUser?.role==='admin'?'All Bookings':'My Bookings';
+  if(!currentUser) return;
+  const isAdmin = currentUser.role === 'admin';
+  const list = isAdmin ? B.slice().reverse() : customerBookings();
+  const recordsEl = $('records');
+  if(recordsEl) recordsEl.innerHTML = list.map(x=>info(x, isAdmin)).join('') || '<p class="muted">No bookings.</p>';
+  const titleEl = $('bookingsTitle');
+  const subEl = $('bookingsSubtitle');
+  if(titleEl) titleEl.textContent = isAdmin ? 'All Bookings' : 'My Bookings';
+  if(subEl) subEl.textContent = isAdmin ? 'All customer bookings. Confirm, assign, and manage payments.' : 'Your bookings for the selected date.';
 }
+
 function renderDrivers(){
   if(currentUser?.role!=='admin')return;
-  const html=DRIVERS.map(d=>'<div class="card"><div class="sectionTitle"><h2 style="margin:0">'+esc(d.name)+'</h2><span class="muted">'+esc(d.username)+'</span></div>'+(d.vehicles||[]).map(v=>'<div class="vehicleBox"><b>'+esc(v.name)+'</b> · '+v.max+' seats · Rs.'+Number(v.fare||0).toLocaleString()+' · '+formatHours(v.travelHours)+'</div>').join('')+'<div class="rowActions" style="margin-top:12px"><button class="secondary btn-sm" onclick="editDriver(\''+esc(d.id)+'\')">Edit</button><button class="danger btn-sm" onclick="deleteDriver(\''+esc(d.id)+'\')">Delete</button></div></div>').join('');
+  const html=DRIVERS.map(d=>'<div class="card"><div class="sectionTitle"><h2 style="margin:0">'+esc(d.name)+'</h2><span class="muted">'+esc(d.username)+'</span></div>'+(d.vehicles||[]).map(v=>'<div class="vehicleBox"><b>'+esc(v.name)+'</b> · '+v.max+' seats · Rs.'+Number(v.fare||0).toLocaleString()+' · '+formatHours(v.travelHours)+'</div>').join('')+'<div class="rowActions" style="margin-top:12px"><button class="secondary btn-sm" onclick="editDriver(\''+esc(d.id)+'\')">✏️ Edit</button><button class="danger btn-sm" onclick="deleteDriver(\''+esc(d.id)+'\')">🗑️ Delete</button></div></div>').join('');
   $('driversContent').innerHTML=html||'<p class="muted">No drivers yet.</p>';
 }
+
 function renderReports(){
   if(currentUser?.role!=='admin')return;
   const completed=B.filter(x=>x.status==='completed'),revenue=B.reduce((s,x)=>s+Number(x.paid||0),0);
   const byV={};B.forEach(x=>{byV[x.vehicleName]=(byV[x.vehicleName]||0)+1});
   $('businessSummary').innerHTML='<p>Completed rides: <b>'+completed.length+'</b> · Collected: <b>Rs.'+revenue.toLocaleString()+'</b></p><p class="muted">'+Object.entries(byV).map(([k,v])=>esc(k)+': '+v).join(' · ')+'</p>';
 }
+
 function runReport(){
   const q=($('reportSearch').value||'').toLowerCase(),d=$('reportDate').value,s=$('reportStatus').value;
   const a=B.filter(x=>(!q||String(x.id).includes(q)||x.name.toLowerCase().includes(q)||x.phone.toLowerCase().includes(q))&&(!d||x.date===d)&&(!s||x.status===s));
@@ -719,7 +695,6 @@ function render(){
   }
 }
 
-/* ---------- admin actions ---------- */
 function openDriverModal(id){editorVehicles=[];$('editDriverId').value=id||'';let d=id?getDriver(id):null;$('driverModalTitle').textContent=d?'Edit Driver':'Create Driver';$('driverName').value=d?.name||'';$('driverUsername').value=d?.username||'';$('driverPassword').value=d?.password||'';if(d)editorVehicles=(d.vehicles||[]).map(v=>({...v}));renderEditorVehicles();$('driverModal').classList.add('show');}
 function closeDriverModal(){$('driverModal').classList.remove('show');}
 function addVehicleToEditor(){const n=$('newVehicleName').value.trim(),m=Number($('newVehicleMax').value),f=Number($('newVehicleFare').value),h=Number($('newVehicleHours').value);if(!n||m<1||f<0||h<=0){toast('Fill vehicle fields','err');return;}editorVehicles.push({id:'v_'+Date.now()+'_'+Math.random().toString(16).slice(2),name:n,max:m,fare:f,travelHours:h});$('newVehicleName').value='';$('newVehicleMax').value='';$('newVehicleFare').value='';$('newVehicleHours').value='';renderEditorVehicles();}
@@ -790,7 +765,6 @@ function cancelBooking(id){
 }
 function customerCancel(id){cancelBooking(id);}
 
-/* ---------- driver ride actions + auto location ---------- */
 async function jrDriverStatusUpdate(id,status,extra){
   extra=extra||{};
   const b=B.find(x=>String(x.id)===String(id));
@@ -806,24 +780,15 @@ async function jrDriverStatusUpdate(id,status,extra){
     refreshCurrentPage();toast('Ride updated','ok');
   }catch(err){toast('Update error: '+err.message,'err');}
 }
-
 function startRide(id){
   jrDriverStatusUpdate(id,'started',{started_at:new Date().toISOString()});
-  /* AUTO-START location sharing */
-  setTimeout(()=>{
-    if(currentUser?.role==='driver'){
-      toast('Starting location sharing…','ok');
-      jrStartLiveLocation();
-    }
-  },700);
+  setTimeout(()=>{if(currentUser?.role==='driver'){toast('Starting location sharing…','ok');jrStartLiveLocation();}},700);
 }
 function completeRide(id){
   jrDriverStatusUpdate(id,'completed',{completed_at:new Date().toISOString()});
-  /* AUTO-STOP location sharing */
   setTimeout(()=>{if(currentUser?.role==='driver')jrStopLiveLocation();},700);
 }
 
-/* ---------- backup ---------- */
 function backupData(){const data=JSON.stringify({bookings:B,drivers:DRIVERS,version:2},null,2);const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download='jaffnaride-backup-'+localDateStr()+'.json';a.click();}
 function restoreData(e){
   const f=e.target.files[0];if(!f)return;
@@ -854,7 +819,6 @@ function exportCSV(){
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='jaffnaride-bookings.csv';a.click();
 }
 
-/* ---------- wiring ---------- */
 $('loginBtn').addEventListener('click',login);
 $('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
 $('registerBtn').addEventListener('click',openRegister);
@@ -877,7 +841,7 @@ function jrRenderLocationUI(){
   if(!role||!card) return;
   if(role==='driver'){
     if(titleEl) titleEl.textContent='Live Location';
-    if(subEl) subEl.textContent='Your location is shared automatically when you Start a Ride.';
+    if(subEl) subEl.textContent='Location starts automatically when you Start a Ride.';
     card.innerHTML='<div id="jrLocationStatus" class="locationStatus warn">Live location is OFF.</div><div id="jrLiveMap" class="liveLocationMap"></div>';
   } else if(role==='admin'){
     if(titleEl) titleEl.textContent='Live Driver Locations';
