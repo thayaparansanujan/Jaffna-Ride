@@ -857,7 +857,6 @@ function jrRenderLocationUI(){
   jrEnsureMap();
   jrSubscribeLocations();
   
-  /* Admin & Customer only read data */
   if(role==='admin' || role==='customer') {
     jrLoadLiveLocations();
   }
@@ -868,6 +867,7 @@ function jrEnsureMap(){if(!window.L)return;const el=document.getElementById('jrL
 function jrClearMarkers(){if(!jrMap)return;Object.values(jrLocationMarkers).forEach(m=>{try{jrMap.removeLayer(m)}catch(e){}});jrLocationMarkers={};}
 function jrIcon(h){h=h||0;return L.divIcon({className:'',html:'<div class="carMarker" style="transform:rotate('+Number(h)+'deg)"><span>🚗</span></div>',iconSize:[44,44],iconAnchor:[22,22]});}
 
+// FIX: Marker Flicker Fix (Update existing marker instead of removing all)
 async function jrLoadLiveLocations(){
   if(!jrMap||!window.jrDB||!currentUser)return;
   try{
@@ -883,22 +883,48 @@ async function jrLoadLiveLocations(){
     }
     if(currentUser.role==='driver') rows=rows.filter(x=>String(x.driver_id)===String(currentUser.driverId));
     
-    jrClearMarkers();
-    if(!rows.length){jrSetLocationStatus(currentUser.role==='customer'?'No driver sharing location yet.':'No active locations.','warn');return;}
+    const activeIds = new Set();
+    
+    if(!rows.length){
+      jrClearMarkers();
+      jrSetLocationStatus(currentUser.role==='customer'?'No driver sharing location yet.':'No active locations.','warn');
+      return;
+    }
     
     const bounds=[];
     rows.forEach(x=>{
       const lat=Number(x.latitude),lng=Number(x.longitude);
       if(!Number.isFinite(lat)||!Number.isFinite(lng))return;
-      const d=getDriver(x.driver_id)||getDriver(String(x.driver_id));
-      const name=d?.name||('Driver '+x.driver_id);
-      const m=L.marker([lat,lng],{icon:jrIcon(Number(x.heading||0))}).addTo(jrMap);
-      m.bindPopup('<b>🚗 '+esc(name)+'</b>');
-      jrLocationMarkers[String(x.driver_id)]=m;
+      
+      const driverIdStr = String(x.driver_id);
+      activeIds.add(driverIdStr);
+      
+      const d=getDriver(driverIdStr)||getDriver(Number(driverIdStr));
+      const name=d?.name||('Driver '+driverIdStr);
+      
+      // FIX: If marker already exists, just move it. Do not recreate.
+      let m = jrLocationMarkers[driverIdStr];
+      if(m){
+        m.setLatLng([lat,lng]);
+        m.setIcon(jrIcon(Number(x.heading||0)));
+      } else {
+        m = L.marker([lat,lng],{icon:jrIcon(Number(x.heading||0))}).addTo(jrMap);
+        m.bindPopup('<b>🚗 '+esc(name)+'</b>');
+        jrLocationMarkers[driverIdStr] = m;
+      }
       bounds.push([lat,lng]);
     });
-    if(bounds.length===1)jrMap.setView(bounds[0],14);
-    else if(bounds.length)jrMap.fitBounds(bounds,{padding:[30,30],maxZoom:14});
+    
+    // Remove markers that are no longer active
+    Object.keys(jrLocationMarkers).forEach(id => {
+      if(!activeIds.has(id)){
+        try{ jrMap.removeLayer(jrLocationMarkers[id]); }catch(e){}
+        delete jrLocationMarkers[id];
+      }
+    });
+    
+    if(bounds.length===1) jrMap.setView(bounds[0],14);
+    else if(bounds.length) jrMap.fitBounds(bounds,{padding:[30,30],maxZoom:14});
     jrSetLocationStatus(rows.length+' active driver location'+(rows.length>1?'s':'')+' on map.','ok');
   }catch(err){console.error(err);jrSetLocationStatus('DB error: '+err.message,'err');}
 }
