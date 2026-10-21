@@ -127,12 +127,13 @@ button:disabled{opacity:.6;cursor:not-allowed}
 .returnRide .cstrike{text-decoration:line-through;color:#94a3b8;margin-right:8px;font-size:14px}
 .returnRide .cnew{color:var(--accent);font-weight:800;font-size:16px}
 .discountTag{background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:800;margin-left:8px;letter-spacing:.5px}
-.liveLocationMap{height:380px;border-radius:14px;overflow:hidden;border:1.5px solid var(--line);margin-top:12px}
+.liveLocationMap{height:380px;border-radius:14px;overflow:hidden;border:1.5px solid var(--line);margin-top:12px;z-index:1}
 .locationStatus{padding:12px 14px;border-radius:10px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;margin-top:12px;font-size:13px;font-weight:500}
 .locationStatus.ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
 .locationStatus.warn{background:#fffbeb;border-color:#fde68a;color:#92400e}
 .locationStatus.err{background:#fef2f2;border-color:#fecaca;color:#991b1b}
 .carMarker{width:44px;height:44px;border-radius:50%;background:#fff;border:3px solid var(--blue);box-shadow:0 4px 12px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:24px;transform-origin:center center}
+.custom-car-icon{background:transparent;border:none;box-shadow:none;}
 .hidden{display:none!important}
 #loadingOverlay{position:fixed;inset:0;background:rgba(255,255,255,.9);z-index:99999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px}
 #loadingOverlay.show{display:flex}
@@ -865,9 +866,18 @@ function jrRenderLocationUI(){
 function jrSetLocationStatus(msg,cls){const e=document.getElementById('jrLocationStatus');if(e){e.className='locationStatus '+(cls||'');e.textContent=msg;}}
 function jrEnsureMap(){if(!window.L)return;const el=document.getElementById('jrLiveMap');if(!el)return;if(jrMap){try{jrMap.remove()}catch(e){}}jrMap=L.map(el).setView(JR_MAP_DEFAULT,10);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(jrMap);setTimeout(()=>jrMap.invalidateSize(),150);}
 function jrClearMarkers(){if(!jrMap)return;Object.values(jrLocationMarkers).forEach(m=>{try{jrMap.removeLayer(m)}catch(e){}});jrLocationMarkers={};}
-function jrIcon(h){h=h||0;return L.divIcon({className:'',html:'<div class="carMarker" style="transform:rotate('+Number(h)+'deg)"><span>🚗</span></div>',iconSize:[44,44],iconAnchor:[22,22]});}
 
-// FIX: Marker Flicker Fix (Update existing marker instead of removing all)
+// FIX: Added custom-car-icon class to avoid Leaflet CSS conflicts
+function jrIcon(h){
+  h = h || 0;
+  return L.divIcon({
+    className: 'custom-car-icon',
+    html: '<div class="carMarker" style="transform:rotate(' + Number(h) + 'deg)"><span>🚗</span></div>',
+    iconSize: [44, 44],
+    iconAnchor: [22, 22]
+  });
+}
+
 async function jrLoadLiveLocations(){
   if(!jrMap||!window.jrDB||!currentUser)return;
   try{
@@ -902,7 +912,6 @@ async function jrLoadLiveLocations(){
       const d=getDriver(driverIdStr)||getDriver(Number(driverIdStr));
       const name=d?.name||('Driver '+driverIdStr);
       
-      // FIX: If marker already exists, just move it. Do not recreate.
       let m = jrLocationMarkers[driverIdStr];
       if(m){
         m.setLatLng([lat,lng]);
@@ -915,7 +924,6 @@ async function jrLoadLiveLocations(){
       bounds.push([lat,lng]);
     });
     
-    // Remove markers that are no longer active
     Object.keys(jrLocationMarkers).forEach(id => {
       if(!activeIds.has(id)){
         try{ jrMap.removeLayer(jrLocationMarkers[id]); }catch(e){}
@@ -948,9 +956,15 @@ async function jrStartLiveLocation(){
       jrSetLocationStatus('🟢 Sharing ON · '+Math.round(p.coords.accuracy||0)+' m','ok');
       jrEnsureMap();
       const old=jrLocationMarkers[String(currentUser.driverId)];
-      if(old){old.setLatLng([p.coords.latitude,p.coords.longitude]);old.setIcon(jrIcon(heading));}
-      else{const m=L.marker([p.coords.latitude,p.coords.longitude],{icon:jrIcon(heading)}).addTo(jrMap);m.bindPopup('<b>🚗 '+esc(currentUser.name)+'</b>');jrLocationMarkers[String(currentUser.driverId)]=m;}
-      jrMap.setView([p.coords.latitude,p.coords.longitude],15);
+      if(old){
+        old.setLatLng([p.coords.latitude,p.coords.longitude]);
+        old.setIcon(jrIcon(heading));
+      } else {
+        const m = L.marker([p.coords.latitude, p.coords.longitude], {icon: jrIcon(heading)}).addTo(jrMap);
+        m.bindPopup('<b>🚗 ' + esc(currentUser.name) + '</b>');
+        jrLocationMarkers[String(currentUser.driverId)] = m;
+      }
+      jrMap.setView([p.coords.latitude, p.coords.longitude], 15);
     }catch(err){console.error(err);jrSetLocationStatus('DB error: '+err.message,'err');}
   },err=>{const msg=err.code===1?'❌ Permission denied':err.code===2?'📍 Location unavailable':'⏱️ Timed out';jrSetLocationStatus(msg,'err');},{enableHighAccuracy:true,maximumAge:3000,timeout:20000});
 }
@@ -971,7 +985,6 @@ function jrSubscribeLocations(){
   jrLocationChannel=jrDB.channel('jr-driver-location-live').on('postgres_changes',{event:'*',schema:'public',table:'driver_locations'},()=>jrLoadLiveLocations()).subscribe();
 }
 
-/* Only auto-refresh for admin & customer when location page is active */
 setInterval(()=>{
   if(currentUser?.role && currentUser.role!=='driver' && document.getElementById('page-location')?.classList.contains('active')){
     jrLoadLiveLocations();
