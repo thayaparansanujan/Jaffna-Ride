@@ -127,7 +127,7 @@ button:disabled{opacity:.6;cursor:not-allowed}
 .returnRide .cstrike{text-decoration:line-through;color:#94a3b8;margin-right:8px;font-size:14px}
 .returnRide .cnew{color:var(--accent);font-weight:800;font-size:16px}
 .discountTag{background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:800;margin-left:8px;letter-spacing:.5px}
-.liveLocationMap{height:380px;border-radius:14px;overflow:hidden;border:1.5px solid var(--line);margin-top:12px;z-index:1}
+.availPickerMap{height:300px;border-radius:14px;overflow:hidden;border:1.5px solid var(--line);margin-top:10px;z-index:1}.availMapHint{font-size:12px;color:var(--muted);margin:8px 0}.liveLocationMap{height:380px;border-radius:14px;overflow:hidden;border:1.5px solid var(--line);margin-top:12px;z-index:1}
 .locationStatus{padding:12px 14px;border-radius:10px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;margin-top:12px;font-size:13px;font-weight:500}
 .locationStatus.ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
 .locationStatus.warn{background:#fffbeb;border-color:#fde68a;color:#92400e}
@@ -291,6 +291,12 @@ button:disabled{opacity:.6;cursor:not-allowed}
       </div>
     </div>
 
+    <div class="page" id="page-availability">
+      <h1 class="pageTitle" id="availabilityTitle">Available Vehicles</h1>
+      <p class="pageSubtitle" id="availabilitySubtitle">Vehicles currently marked available by drivers.</p>
+      <div id="availabilityContent"></div>
+    </div>
+
     <div class="page" id="page-location">
       <h1 class="pageTitle" id="locationPageTitle">Live Location</h1>
       <p class="pageSubtitle" id="locationPageSubtitle"></p>
@@ -352,7 +358,8 @@ const JR_SUPABASE_KEY='sb_publishable_goY1UKJWDYd-qzzvmT8sQA_fganbwWF';
 const jrDB=window.supabase.createClient(JR_SUPABASE_URL,JR_SUPABASE_KEY);
 
 let currentUser=null,B=[],DRIVERS=[],jrDatabaseReady=false,jrDatabaseError='';
-let editorVehicles=[],assignBookingId=null,paymentBookingId=null,selectedReturnBookingId=null;
+let editorVehicles=[],assignBookingId=null,paymentBookingId=null,selectedReturnBookingId=null,selectedAvailableFare=null,selectedAvailableVehicleId=null;
+let JR_AVAILABILITY=[];
 let currentPage='login';
 
 function toast(msg,type){const t=$('toast');t.textContent=msg;t.className='show '+(type||'');clearTimeout(t._timer);t._timer=setTimeout(()=>{t.className='';},3500);}
@@ -380,14 +387,17 @@ function buildSidebar(){
     add('dashboard','🏠','Home');
     add('book','🚐','Book a Ride');
     add('bookings','📋','My Bookings');
+    add('availability','🚘','Available Vehicles');
     add('location','📍','Driver Location');
   } else if(role==='driver'){
     add('dashboard','🏠','Home');
+    add('availability','🚘','My Vehicle Availability');
     add('location','📍','Live Location');
   } else if(role==='admin'){
     add('dashboard','🏠','Home');
     add('bookings','📋','Bookings');
     add('drivers','👥','Drivers & Vehicles');
+    add('availability','🚘','Vehicle Availability');
     add('reports','📊','Reports & Backup');
     add('location','📍','Live Locations');
   }
@@ -408,7 +418,7 @@ function navigateTo(page){
   buildSidebar();
   refreshCurrentPage();
   window.scrollTo({top:0,behavior:'smooth'});
-  setTimeout(()=>{if(page==='location')jrRenderLocationUI();},50);
+  setTimeout(()=>{if(page==='location')jrRenderLocationUI(); if(page==='availability')renderAvailabilityPage();},50);
 }
 
 function jrDriverFromRow(d,vehicleRows){return{id:d.id,name:d.name,username:d.username,password:d.password,vehicles:(vehicleRows||[]).filter(v=>String(v.driver_id)===String(d.id)).map(v=>({id:v.id,name:v.name,max:Number(v.max_passengers),fare:Number(v.fare||0),travelHours:Number(v.travel_hours||1)}))};}
@@ -430,6 +440,7 @@ async function jrLoadDatabase(){
     B=(results[2].data||[]).map(jrBookingFromRow);
     jrDatabaseReady=true;
     updateVehicleOptions();refreshCurrentPage();render();
+    await jrLoadAvailability();
   }catch(err){jrDatabaseError=err?.message||String(err);console.error(err);toast('Database error: '+jrDatabaseError,'err');}
   finally{showLoading(false);}
 }
@@ -502,6 +513,7 @@ function refreshCurrentPage(){
   else if(currentPage==='bookings') renderBookings();
   else if(currentPage==='drivers') renderDrivers();
   else if(currentPage==='reports') renderReports();
+  else if(currentPage==='availability') renderAvailabilityPage();
 }
 
 (function initDate(){$('date').value=localDateStr();})();
@@ -517,11 +529,11 @@ function updatePassengerOptions(){
   let v=getVehicle($('vehicleSelect').value),max=v?Number(v.max):0;
   $('pass').innerHTML=max?Array.from({length:max},(_,i)=>'<option value="'+(i+1)+'">'+(i+1)+'</option>').join(''):'<option value="">Select vehicle first</option>';
   if(!v){$('vehicleCapacityNotice').textContent='Select a vehicle.';$('farePreview').textContent='Rs. 0';$('arrivalPreview').textContent='—';return;}
-  $('vehicleCapacityNotice').innerHTML='Selected: <b>'+esc(v.name)+'</b> · Max <b>'+max+'</b> passengers · Fare <b>Rs.'+Number(v.fare||0).toLocaleString()+'</b> · Travel <b>'+formatHours(v.travelHours)+'</b>.';
+  const shownFare=(selectedAvailableVehicleId===String(v.id)&&selectedAvailableFare!=null)?Number(selectedAvailableFare):Number(v.fare||0);$('vehicleCapacityNotice').innerHTML='Selected: <b>'+esc(v.name)+'</b> · Max <b>'+max+'</b> passengers · Fare <b>Rs.'+shownFare.toLocaleString()+'</b> · Travel <b>'+formatHours(v.travelHours)+'</b>.';
   previewArrival();findReturnRides();
 }
 function previewArrival(){
-  let v=getVehicle($('vehicleSelect').value),fare=Number(v?.fare||0);
+  let v=getVehicle($('vehicleSelect').value),fare=Number((selectedAvailableVehicleId===String(v?.id)&&selectedAvailableFare!=null)?selectedAvailableFare:(v?.fare||0));
   if(selectedReturnBookingId&&v){fare=Math.round(fare/2);$('farePreview').innerHTML='<span style="text-decoration:line-through;color:#94a3b8;font-size:16px">Rs.'+Number(v.fare||0).toLocaleString()+'</span> <span style="color:var(--accent)">Rs.'+fare.toLocaleString()+'</span> <span class="discountTag">50% OFF</span>';}
   else{$('farePreview').textContent='Rs. '+fare.toLocaleString();}
   $('arrivalPreview').textContent=v?calcArrival($('time').value,v.travelHours)||'—':'—';
@@ -572,16 +584,16 @@ function valid(){
 
 function book(){
   if(!valid())return;
-  let v=getVehicle($('vehicleSelect').value),fare=Number(v.fare||0),originalFare=null,isReturn=false;
+  let v=getVehicle($('vehicleSelect').value),fare=Number((selectedAvailableVehicleId===String(v.id)&&selectedAvailableFare!=null)?selectedAvailableFare:(v.fare||0)),originalFare=null,isReturn=false;
   if(selectedReturnBookingId){isReturn=true;originalFare=fare;fare=Math.round(fare/2);}
   const arrival=calcArrival($('time').value,v.travelHours);
   const newBooking={id:Date.now()*1000+Math.floor(Math.random()*1000),customerId:currentUser?.customerId||null,route:$('route').value,date:$('date').value,time:$('time').value,arrival,name:$('name').value.trim(),phone:$('phone').value.trim(),passengers:Number($('pass').value),vehicleId:v.id,vehicleName:v.name,fare,travelHours:Number(v.travelHours),paid:0,status:'pending',driverId:null,createdAt:new Date().toISOString(),isReturn,originalFare,returnOfBookingId:selectedReturnBookingId};
-  B.push(newBooking);save(newBooking.id);selectedReturnBookingId=null;$('returnRideNotice').style.display='none';
+  B.push(newBooking);save(newBooking.id);selectedReturnBookingId=null;selectedAvailableFare=null;selectedAvailableVehicleId=null;$('returnRideNotice').style.display='none';
   toast(isReturn?'Return booking created!':'Booking sent to Admin.','ok');
   navigateTo('bookings');
 }
 
-$('vehicleSelect').addEventListener('change',updatePassengerOptions);
+$('vehicleSelect').addEventListener('change',()=>{if(String($('vehicleSelect').value)!==String(selectedAvailableVehicleId)){selectedAvailableFare=null;selectedAvailableVehicleId=null;}updatePassengerOptions();});
 $('time').addEventListener('input',previewArrival);
 $('bookBtn').addEventListener('click',book);
 $('date').addEventListener('change',findReturnRides);
@@ -651,11 +663,51 @@ function renderDashboard(){
     $('dashContent').innerHTML='<div class="stats"><div class="stat">Bookings<b>'+B.length+'</b></div><div class="stat">Pending<b>'+pending.length+'</b></div><div class="stat">Active<b>'+active.length+'</b></div><div class="stat">Collected<b>Rs.'+income.toLocaleString()+'</b></div></div><div class="card"><h2>Recent Bookings</h2>'+(B.length?B.slice().reverse().slice(0,5).map(x=>info(x,true)).join(''):'<p class="muted">No bookings yet.</p>')+'</div>';
   } else if(role==='driver'){
     const mine=B.filter(x=>String(x.driverId)===String(currentUser.driverId));
-    $('dashContent').innerHTML='<div class="stats"><div class="stat">Total<b>'+mine.length+'</b></div><div class="stat">Assigned<b>'+mine.filter(x=>x.status==='assigned').length+'</b></div><div class="stat">Started<b>'+mine.filter(x=>x.status==='started').length+'</b></div><div class="stat">Completed<b>'+mine.filter(x=>x.status==='completed').length+'</b></div></div><div class="card"><h2>My Rides</h2>'+(mine.length?mine.slice().reverse().map(x=>{let h=info(x,false);if(x.status==='assigned')h+='<button class="primary btn-sm btn-block" onclick="startRide('+x.id+')" style="margin-top:8px">▶ Start Ride</button>';if(x.status==='started')h+='<button class="success btn-sm btn-block" onclick="completeRide('+x.id+')" style="margin-top:8px">✅ Complete Ride</button>';return h;}).join(''):'<p class="muted">No rides assigned.</p>')+'</div>';
+    $('dashContent').innerHTML='<div class="stats"><div class="stat">Total<b>'+mine.length+'</b></div><div class="stat">Assigned<b>'+mine.filter(x=>x.status==='assigned').length+'</b></div><div class="stat">Started<b>'+mine.filter(x=>x.status==='started').length+'</b></div><div class="stat">Completed<b>'+mine.filter(x=>x.status==='completed').length+'</b></div></div><div class="card"><h2>My Rides</h2>'+(mine.length?mine.slice().reverse().map(x=>{let h=info(x,false);if(x.status==='assigned')h+='<button class="primary btn-sm btn-block" onclick="startRide('+x.id+')" style="margin-top:8px">▶ Start Ride</button>';if(x.status==='started')h+='<button class="success btn-sm btn-block" onclick="completeRide('+x.id+')" style="margin-top:8px">✅ Complete Ride</button>';return h;}).join(''):'<p class="muted">No rides assigned.</p>')+'</div>';$('dashContent').innerHTML+='<div class="card"><h2>🚘 Vehicle Availability</h2><p class="muted">Tell customers where your vehicle is waiting. Admin approval is required for customer bookings.</p><button class="primary btn-block" onclick="navigateTo(\'availability\')">Update My Availability</button></div>';
   } else {
     const mine=customerBookings();
     $('dashContent').innerHTML='<div class="stats"><div class="stat">Total<b>'+mine.length+'</b></div><div class="stat">Pending<b>'+mine.filter(x=>x.status==='pending').length+'</b></div><div class="stat">Active<b>'+mine.filter(x=>['confirmed','assigned','started'].includes(x.status)).length+'</b></div><div class="stat">Completed<b>'+mine.filter(x=>x.status==='completed').length+'</b></div></div><div class="card"><h2>Quick Actions</h2><div class="rowActions"><button class="primary btn-sm" onclick="navigateTo(\'book\')">🚐 Book a Ride</button><button class="secondary btn-sm" onclick="navigateTo(\'bookings\')">📋 My Bookings</button></div></div>';
   }
+}
+
+async function jrLoadAvailability(){
+  try{
+    const {data,error}=await jrDB.from('vehicle_availability').select('*').order('updated_at',{ascending:false});
+    if(error) throw error;
+    JR_AVAILABILITY=data||[];
+    if(currentPage==='availability') renderAvailabilityPage();
+  }catch(err){
+    console.warn('Availability table is not ready:',err.message);
+    JR_AVAILABILITY=[];
+  }
+}
+function renderAvailabilityPage(){
+  const el=$('availabilityContent'); if(!el||!currentUser)return;
+  if(currentUser.role==='driver'){
+    const d=getDriver(currentUser.driverId),vehicles=d?.vehicles||[];
+    const existing=JR_AVAILABILITY.filter(x=>String(x.driver_id)===String(currentUser.driverId));
+    el.innerHTML='<div class="card"><h2>Update Vehicle Availability</h2><p class="muted">Pick your vehicle location on the map or use GPS. Customers can see available vehicles; Admin must approve bookings.</p><div class="formRow"><label>Vehicle</label><select id="availVehicle">'+(vehicles.length?vehicles.map(v=>'<option value="'+esc(v.id)+'">'+esc(v.name)+' · Rs. '+Number(v.fare||0).toLocaleString()+'</option>').join(''):'<option value="">No vehicle assigned to your account</option>')+'</select></div><div class="rowActions"><button type="button" class="secondary" onclick="jrUseAvailabilityGPS()">📍 Use Current GPS Location</button><button type="button" class="secondary" onclick="jrPickAvailabilityOnMap()">🗺️ Pick on Map</button></div><p class="availMapHint">Tap the map to place or move the pin.</p><div id="availPickerMap" class="availPickerMap"></div><div class="formRow"><label>Customer Fare / Amount (Rs.)</label><input id="availAmount" type="number" min="0" step="1" placeholder="Enter your trip amount" required></div><div class="formRow"><label>Location name (optional)</label><input id="availPlace" placeholder="e.g. Jaffna Bus Stand"></div><div class="formRow"><label>Selected coordinates</label><input id="availCoords" readonly placeholder="Pick map location or use GPS"></div><input type="hidden" id="availLat"><input type="hidden" id="availLng"><div class="formRow"><label>Status</label><select id="availStatus"><option value="true">Available for booking</option><option value="false">Not available</option></select></div><button class="primary btn-block" onclick="saveVehicleAvailability()">Save Availability</button></div><div class="card"><h2>My Current Status</h2>'+(existing.length?existing.map(x=>'<div class="vehicleBox"><b>'+esc(x.vehicle_name||'Vehicle')+'</b><p>📍 '+esc(x.location||'Location not entered')+'</p><p class="muted">'+(x.latitude!=null&&x.longitude!=null?Number(x.latitude).toFixed(6)+', '+Number(x.longitude).toFixed(6):'Map location not saved')+'</p><span class="tag '+(x.is_available?'confirmed':'cancelled')+'">'+(x.is_available?'AVAILABLE':'NOT AVAILABLE')+'</span></div>').join(''):'<p class="muted">You have not updated vehicle availability yet.</p>')+'</div>';
+    const sel=$('availVehicle'); if(sel&&vehicles.length){const row=existing.find(x=>String(x.vehicle_id)===String(sel.value))||existing[0];if(row){sel.value=String(row.vehicle_id);$('availPlace').value=row.location||'';$('availAmount').value=row.amount??getVehicle(row.vehicle_id)?.fare??0;$('availStatus').value=String(row.is_available!==false);if(row.latitude!=null&&row.longitude!=null){$('availLat').value=row.latitude;$('availLng').value=row.longitude;$('availCoords').value=Number(row.latitude).toFixed(6)+', '+Number(row.longitude).toFixed(6);}}}setTimeout(jrInitAvailabilityMap,120);
+  }else if(currentUser.role==='customer'){
+    const rows=JR_AVAILABILITY.filter(x=>x.is_available===true||x.is_available==='true');
+    el.innerHTML=(rows.some(x=>x.latitude!=null&&x.longitude!=null)?'<div class="card"><h2>Available Vehicles Map</h2><div id="customerAvailabilityMap" class="availPickerMap"></div></div>':'')+(rows.length?rows.map(x=>{const d=getDriver(x.driver_id),v=getVehicle(x.vehicle_id);return '<div class="card"><div class="sectionTitle"><h2 style="margin:0">🚘 '+esc(x.vehicle_name||v?.name||'Vehicle')+'</h2><span class="tag confirmed">AVAILABLE</span></div><p>👨‍✈️ Driver: <b>'+esc(d?.name||'Driver')+'</b></p><p>📍 Waiting at: <b>'+esc(x.location||'Location not provided')+'</b></p><p>👥 Seats: '+Number(v?.max||0)+' · Fare: Rs. '+Number(x.amount??v?.fare??0).toLocaleString()+'</p><button class="primary btn-block" onclick="bookAvailableVehicle(\''+esc(x.vehicle_id)+'\')">Book This Vehicle</button></div>';}).join(''):'<div class="card"><p class="muted">No vehicles are marked available right now. Please check again later.</p><button class="secondary btn-block" onclick="jrLoadAvailability()">Refresh</button></div>');if(rows.some(x=>x.latitude!=null&&x.longitude!=null))setTimeout(jrInitCustomerAvailabilityMap,120);
+  }else{
+    const rows=JR_AVAILABILITY;
+    el.innerHTML=rows.length?rows.map(x=>'<div class="card"><div class="sectionTitle"><h2 style="margin:0">'+esc(x.vehicle_name||'Vehicle')+'</h2><span class="tag '+(x.is_available?'confirmed':'cancelled')+'">'+(x.is_available?'AVAILABLE':'NOT AVAILABLE')+'</span></div><p>Driver: '+esc(getDriver(x.driver_id)?.name||x.driver_id)+'</p><p>📍 '+esc(x.location||'Location not entered')+'</p><p class="muted">Updated: '+esc(x.updated_at?new Date(x.updated_at).toLocaleString():'')+'</p></div>').join(''):'<div class="card"><p class="muted">No driver availability updates yet.</p></div>';
+  }
+}
+async function saveVehicleAvailability(){
+  const vehicleId=$('availVehicle')?.value,place=$('availPlace')?.value.trim(),available=$('availStatus')?.value==='true',amountRaw=$('availAmount')?.value,amount=Number(amountRaw);
+  const v=getVehicle(vehicleId);
+  if(!vehicleId||!v){toast('No vehicle assigned to your account','err');return;}if(amountRaw===''||!Number.isFinite(amount)||amount<0){toast('Enter a valid customer amount','err');return;}
+  const latitude=$('availLat')?.value,longitude=$('availLng')?.value;if(!latitude||!longitude){toast('Pick a location on the map or use GPS first','err');return;}const row={vehicle_id:String(vehicleId),driver_id:String(currentUser.driverId),vehicle_name:v.name,location:place||'Pinned map location',latitude:Number(latitude),longitude:Number(longitude),amount,is_available:available,updated_at:new Date().toISOString()};
+  try{const{error}=await jrDB.from('vehicle_availability').upsert(row,{onConflict:'vehicle_id'});if(error)throw error;await jrLoadAvailability();renderAvailabilityPage();toast('Vehicle availability updated','ok');}
+  catch(err){console.error(err);toast('Save failed. Create vehicle_availability table in Supabase first.','err');}
+}
+function bookAvailableVehicle(vehicleId){
+  if(currentUser?.role!=='customer'){toast('Please sign in as a customer to book','err');return;}
+  const availability=JR_AVAILABILITY.find(x=>String(x.vehicle_id)===String(vehicleId));selectedAvailableFare=availability?.amount!=null?Number(availability.amount):null;selectedAvailableVehicleId=String(vehicleId);navigateTo('book');
+  setTimeout(()=>{updateVehicleOptions();$('vehicleSelect').value=String(vehicleId);updatePassengerOptions();$('name').value=currentUser.name||'';$('phone').value=currentUser.phone||'';toast('Vehicle selected. Enter trip date, time and route, then Book Now. Admin approval is required.','ok');},80);
 }
 
 function renderBookings(){
@@ -833,6 +885,44 @@ window.addEventListener('load',()=>setTimeout(jrLoadDatabase,100));
 <script>
 const JR_MAP_DEFAULT=[9.6615,80.0255];
 let jrMap=null, jrLocationMarkers={}, jrLocationWatch=null, jrLocationChannel=null;
+// Live tracking: keep recent GPS points and draw a route trail for each active driver.
+let jrLocationTrails={}, jrLocationLastPoint={}, jrLocationTrailPoints={};
+
+let jrAvailMap=null,jrAvailMarker=null,jrCustomerAvailMap=null,jrCustomerAvailMarkers=[];
+function jrInitAvailabilityMap(){
+  const el=document.getElementById('availPickerMap');if(!el||!window.L)return;
+  if(jrAvailMap){try{jrAvailMap.remove()}catch(e){}jrAvailMap=null;jrAvailMarker=null;}
+  const lat=Number(document.getElementById('availLat')?.value),lng=Number(document.getElementById('availLng')?.value);
+  const center=Number.isFinite(lat)&&Number.isFinite(lng)&&lat!==0&&lng!==0?[lat,lng]:JR_MAP_DEFAULT;
+  jrAvailMap=L.map(el).setView(center,Number.isFinite(lat)&&lat!==0?15:10);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(jrAvailMap);
+  jrAvailMap.on('click',e=>jrSetAvailabilityPin(e.latlng.lat,e.latlng.lng,true));
+  if(Number.isFinite(lat)&&Number.isFinite(lng)&&lat!==0&&lng!==0)jrSetAvailabilityPin(lat,lng,false);
+  setTimeout(()=>jrAvailMap&&jrAvailMap.invalidateSize(),150);
+}
+function jrSetAvailabilityPin(lat,lng,updatePlace){
+  if(!jrAvailMap)return;lat=Number(lat);lng=Number(lng);if(!Number.isFinite(lat)||!Number.isFinite(lng))return;
+  if(jrAvailMarker)jrAvailMarker.setLatLng([lat,lng]);else jrAvailMarker=L.marker([lat,lng],{draggable:true}).addTo(jrAvailMap);
+  jrAvailMarker.off('dragend').on('dragend',e=>{const p=e.target.getLatLng();jrSetAvailabilityPin(p.lat,p.lng,true)});
+  const latEl=document.getElementById('availLat'),lngEl=document.getElementById('availLng'),coords=document.getElementById('availCoords');
+  if(latEl)latEl.value=lat;if(lngEl)lngEl.value=lng;if(coords)coords.value=lat.toFixed(6)+', '+lng.toFixed(6);
+  if(updatePlace){const place=document.getElementById('availPlace');if(place&&!place.value.trim())place.value='Map pin location ('+lat.toFixed(4)+', '+lng.toFixed(4)+')';}
+  jrAvailMap.setView([lat,lng],Math.max(jrAvailMap.getZoom(),15));
+}
+function jrPickAvailabilityOnMap(){if(!jrAvailMap){jrInitAvailabilityMap();}setTimeout(()=>document.getElementById('availPickerMap')?.scrollIntoView({behavior:'smooth',block:'center'}),100);toast('Tap the map to place the vehicle pin','ok');}
+function jrUseAvailabilityGPS(){
+  if(!navigator.geolocation){toast('GPS is not supported on this device','err');return;}
+  if(!window.isSecureContext&&location.hostname!=='localhost'&&location.hostname!=='127.0.0.1'){toast('GPS needs HTTPS. Open the app using a secure HTTPS link.','err');return;}
+  toast('Getting your current GPS location…','ok');
+  navigator.geolocation.getCurrentPosition(pos=>{if(!jrAvailMap)jrInitAvailabilityMap();setTimeout(()=>{jrSetAvailabilityPin(pos.coords.latitude,pos.coords.longitude,true);if(jrAvailMap)jrAvailMap.setView([pos.coords.latitude,pos.coords.longitude],16);},100);},err=>toast(err.code===1?'Allow location permission to use GPS':'Could not get GPS location. Try picking the map pin.','err'),{enableHighAccuracy:true,timeout:20000,maximumAge:10000});
+}
+function jrInitCustomerAvailabilityMap(){
+  const el=document.getElementById('customerAvailabilityMap');if(!el||!window.L)return;
+  if(jrCustomerAvailMap){try{jrCustomerAvailMap.remove()}catch(e){}jrCustomerAvailMap=null;jrCustomerAvailMarkers=[];}
+  const rows=JR_AVAILABILITY.filter(x=>(x.is_available===true||x.is_available==='true')&&x.latitude!=null&&x.longitude!=null);if(!rows.length)return;
+  jrCustomerAvailMap=L.map(el).setView([Number(rows[0].latitude),Number(rows[0].longitude)],11);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(jrCustomerAvailMap);
+  const bounds=[];rows.forEach(x=>{const lat=Number(x.latitude),lng=Number(x.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lng))return;const v=getVehicle(x.vehicle_id),m=L.marker([lat,lng]).addTo(jrCustomerAvailMap);m.bindPopup('<b>'+esc(x.vehicle_name||v?.name||'Vehicle')+'</b><br>'+esc(x.location||'Available vehicle')+'<br>Rs. '+Number(x.amount??v?.fare??0).toLocaleString()+'<br><button onclick="bookAvailableVehicle(\''+esc(x.vehicle_id)+'\')">Book this vehicle</button>');jrCustomerAvailMarkers.push(m);bounds.push([lat,lng]);});if(bounds.length>1)jrCustomerAvailMap.fitBounds(bounds,{padding:[24,24]});setTimeout(()=>jrCustomerAvailMap&&jrCustomerAvailMap.invalidateSize(),150);
+}
 
 function jrRenderLocationUI(){
   const role=currentUser?.role;
@@ -844,10 +934,10 @@ function jrRenderLocationUI(){
   if(role==='driver'){
     if(titleEl) titleEl.textContent='Live Location';
     if(subEl) subEl.textContent='Location starts automatically when you Start a Ride.';
-    card.innerHTML='<div id="jrLocationStatus" class="locationStatus warn">Live location is OFF.</div><div id="jrLiveMap" class="liveLocationMap"></div>';
+    card.innerHTML='<div id="jrLocationStatus" class="locationStatus warn">Live location is OFF.</div><div class="locationActions" style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><button class="primary" onclick="jrStartLiveLocation()">▶ Start Live Tracking</button><button class="secondary" onclick="jrStopLiveLocation()">■ Stop Tracking</button></div><p class="muted">Keep this page open while sharing your live location.</p><div id="jrLiveMap" class="liveLocationMap"></div>';
   } else if(role==='admin'){
     if(titleEl) titleEl.textContent='Live Driver Locations';
-    if(subEl) subEl.textContent='All active driver locations update automatically.';
+    if(subEl) subEl.textContent='Live driver markers, movement status and recent route trails. Drivers must enable GPS sharing.';
     card.innerHTML='<div id="jrLocationStatus" class="locationStatus">Connecting…</div><div id="jrLiveMap" class="liveLocationMap"></div>';
   } else {
     if(titleEl) titleEl.textContent='Driver Location';
@@ -882,6 +972,7 @@ function jrEnsureMap(){
     }catch(e){}
     jrMap=null;
     jrLocationMarkers={};
+    jrLocationTrails={};
   }
 
   delete L.Icon.Default.prototype._getIconUrl;
@@ -896,6 +987,29 @@ function jrEnsureMap(){
   setTimeout(()=>{try{jrMap && jrMap.invalidateSize()}catch(e){}},150);
 }
 
+function jrDistanceMeters(a,b){
+  const R=6371000,rad=v=>v*Math.PI/180,dLat=rad(b[0]-a[0]),dLng=rad(b[1]-a[1]);
+  const x=Math.sin(dLat/2)**2+Math.cos(rad(a[0]))*Math.cos(rad(b[0]))*Math.sin(dLng/2)**2;
+  return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+function jrMovementLabel(row,prev){
+  const speed=Number(row.speed||0);
+  if(speed>=0.8) return 'Moving · '+(speed*3.6).toFixed(0)+' km/h';
+  if(prev && jrDistanceMeters(prev.point,[Number(row.latitude),Number(row.longitude)])>=8) return 'Moving';
+  return 'Stopped / very slow';
+}
+function jrUpdateTrail(driverId,lat,lng){
+  const id=String(driverId),point=[lat,lng];
+  if(!jrLocationTrailPoints[id])jrLocationTrailPoints[id]=[];
+  const pts=jrLocationTrailPoints[id],last=pts.length?pts[pts.length-1]:null;
+  if(!last||jrDistanceMeters(last,point)>=3){pts.push(point);if(pts.length>200)pts.shift();}
+  if(jrMap){
+    if(pts.length>=2){
+      if(jrLocationTrails[id])jrLocationTrails[id].setLatLngs(pts);
+      else jrLocationTrails[id]=L.polyline(pts,{color:'#2477d4',weight:4,opacity:0.75}).addTo(jrMap);
+    }
+  }
+}
 function jrIcon(h){
   h = h || 0;
   return L.divIcon({
@@ -933,6 +1047,7 @@ async function jrLoadLiveLocations(){
         try{ jrMap.removeLayer(jrLocationMarkers[id]); }catch(e){}
         delete jrLocationMarkers[id];
       });
+      Object.keys(jrLocationTrails).forEach(id=>{try{jrMap.removeLayer(jrLocationTrails[id])}catch(e){}delete jrLocationTrails[id];});
       jrSetLocationStatus(currentUser.role==='customer'?'No driver sharing location yet.':'No active locations.','warn');
       return;
     }
@@ -944,20 +1059,17 @@ async function jrLoadLiveLocations(){
       
       const driverIdStr = String(x.driver_id);
       activeIds.add(driverIdStr);
-      
       const d=getDriver(driverIdStr)||getDriver(Number(driverIdStr));
       const name=d?.name||('Driver '+driverIdStr);
-      
-      // FIX: Update existing marker position instead of removing and recreating it
+      const prev=jrLocationLastPoint[driverIdStr];
+      const movement=jrMovementLabel(x,prev);
+      const updated=x.updated_at?new Date(x.updated_at).toLocaleTimeString(): 'Unknown';
+      jrUpdateTrail(driverIdStr,lat,lng);
+      jrLocationLastPoint[driverIdStr]={point:[lat,lng],time:Date.now()};
       let m = jrLocationMarkers[driverIdStr];
-      if(m){
-        m.setLatLng([lat,lng]);
-        m.setIcon(jrIcon(Number(x.heading||0)));
-      } else {
-        m = L.marker([lat,lng],{icon:jrIcon(Number(x.heading||0))}).addTo(jrMap);
-        m.bindPopup('<b>🚗 '+esc(name)+'</b>');
-        jrLocationMarkers[driverIdStr] = m;
-      }
+      if(m){m.setLatLng([lat,lng]);m.setIcon(jrIcon(Number(x.heading||0)));}
+      else {m=L.marker([lat,lng],{icon:jrIcon(Number(x.heading||0))}).addTo(jrMap);jrLocationMarkers[driverIdStr]=m;}
+      m.bindPopup('<b>🚗 '+esc(name)+'</b><br>'+esc(movement)+'<br>Updated: '+esc(updated)+(x.booking_id?'<br>Booking: '+esc(x.booking_id):''));
       bounds.push([lat,lng]);
     });
     
@@ -966,12 +1078,17 @@ async function jrLoadLiveLocations(){
       if(!activeIds.has(id)){
         try{ jrMap.removeLayer(jrLocationMarkers[id]); }catch(e){}
         delete jrLocationMarkers[id];
+        if(jrLocationTrails[id]){try{jrMap.removeLayer(jrLocationTrails[id])}catch(e){}delete jrLocationTrails[id];}
+        delete jrLocationTrailPoints[id];delete jrLocationLastPoint[id];
       }
     });
     
-    // Auto zoom to fit all markers
-    if(bounds.length===1) jrMap.setView(bounds[0],14);
-    else if(bounds.length) jrMap.fitBounds(bounds,{padding:[30,30],maxZoom:14});
+    // Fit drivers once; keep the map steady during live marker updates.
+    if(bounds.length && !jrMap._hasFittedDrivers){
+      if(bounds.length===1) jrMap.setView(bounds[0],14);
+      else jrMap.fitBounds(bounds,{padding:[30,30],maxZoom:14});
+      jrMap._hasFittedDrivers=true;
+    }
     
     jrSetLocationStatus(rows.length+' active driver location'+(rows.length>1?'s':'')+' on map.','ok');
   }catch(err){console.error(err);jrSetLocationStatus('DB error: '+err.message,'err');}
@@ -989,24 +1106,22 @@ async function jrStartLiveLocation(){
     try{
       const active=(B||[]).filter(x=>String(x.driverId)===String(currentUser.driverId)&&['assigned','started'].includes(x.status)).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))[0];
       const heading=Number.isFinite(Number(p.coords.heading))?Number(p.coords.heading):0;
-      const row={driver_id:String(currentUser.driverId),latitude:p.coords.latitude,longitude:p.coords.longitude,accuracy:Number(p.coords.accuracy||0),heading,active:true,booking_id:active?Number(active.id):null,updated_at:new Date().toISOString()};
+      const row={driver_id:String(currentUser.driverId),latitude:p.coords.latitude,longitude:p.coords.longitude,accuracy:Number(p.coords.accuracy||0),heading,speed:Number(p.coords.speed||0),active:true,booking_id:active?Number(active.id):null,updated_at:new Date().toISOString()};
       
       const{error}=await jrDB.from('driver_locations').upsert(row,{onConflict:'driver_id'});
       if(error)throw error;
       
-      jrSetLocationStatus('🟢 Sharing ON · '+Math.round(p.coords.accuracy||0)+' m','ok');
+      const kmh=Number(p.coords.speed||0)*3.6;
+      jrSetLocationStatus('🟢 Live tracking ON · '+Math.round(p.coords.accuracy||0)+' m · '+(kmh>=3?'Moving '+kmh.toFixed(0)+' km/h':'Stopped / slow'),'ok');
       jrEnsureMap();
       
       // FIX: Smoothly update current driver's marker
-      const old=jrLocationMarkers[String(currentUser.driverId)];
-      if(old){
-        old.setLatLng([p.coords.latitude,p.coords.longitude]);
-        old.setIcon(jrIcon(heading));
-      } else {
-        const m = L.marker([p.coords.latitude, p.coords.longitude], {icon: jrIcon(heading)}).addTo(jrMap);
-        m.bindPopup('<b>🚗 ' + esc(currentUser.name) + '</b>');
-        jrLocationMarkers[String(currentUser.driverId)] = m;
-      }
+      const driverKey=String(currentUser.driverId), point=[p.coords.latitude,p.coords.longitude];
+      jrUpdateTrail(driverKey,point[0],point[1]);
+      jrLocationLastPoint[driverKey]={point,time:Date.now()};
+      const old=jrLocationMarkers[driverKey];
+      if(old){old.setLatLng(point);old.setIcon(jrIcon(heading));old.bindPopup('<b>🚗 '+esc(currentUser.name||'Driver')+'</b><br>'+(kmh>=3?'Moving · '+kmh.toFixed(0)+' km/h':'Stopped / very slow'));}
+      else {const m=L.marker(point,{icon:jrIcon(heading)}).addTo(jrMap);m.bindPopup('<b>🚗 '+esc(currentUser.name||'Driver')+'</b>');jrLocationMarkers[driverKey]=m;}
       
       // Zoom to current location only once (to avoid map jumping while driving)
       if(!jrMap._userZoomed) {
