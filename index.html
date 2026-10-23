@@ -382,6 +382,7 @@ const $=id=>document.getElementById(id);
 const JR_SUPABASE_URL='https://visacnydfqsophmkubiw.supabase.co';
 const JR_SUPABASE_KEY='sb_publishable_goY1UKJWDYd-qzzvmT8sQA_fganbwWF';
 const jrDB=window.supabase.createClient(JR_SUPABASE_URL,JR_SUPABASE_KEY);
+window.jrDB = jrDB; // Expose to window for live locations
 
 let currentUser=null,B=[],DRIVERS=[],jrDatabaseReady=false,jrDatabaseError='';
 let editorVehicles=[],assignBookingId=null,paymentBookingId=null,selectedReturnBookingId=null;
@@ -803,18 +804,23 @@ async function saveDriver(){
   const id=$('editDriverId').value,n=$('driverName').value.trim(),u=$('driverUsername').value.trim(),pw=$('driverPassword').value;
   if(!n||!u||!pw||!editorVehicles.length){toast('All details + 1 vehicle required','err');return;}
   if(DRIVERS.some(d=>d.username===u&&String(d.id)!==String(id))){toast('Username exists','err');return;}
+  
+  const newDriverId = id || 'd_'+Date.now();
+  const driverData = {id: newDriverId, name: n, username: u, password: pw};
+
   editorVehicles=editorVehicles.map(v=>({...v,name:String(v.name).trim(),max:Number(v.max)||1,fare:Number(v.fare)||0,travelHours:Number(v.travelHours)||1})).filter(v=>v.name);
-  if(id)Object.assign(getDriver(id),{name:n,username:u,password:pw,vehicles:editorVehicles});
-  else DRIVERS.push({id:'d_'+Date.now(),name:n,username:u,password:pw,vehicles:editorVehicles});
+  if(id)Object.assign(getDriver(id),{...driverData, vehicles:editorVehicles});
+  else DRIVERS.push({...driverData, vehicles:editorVehicles});
+  
   closeDriverModal();updateVehicleOptions();showLoading(true);
   try{
-    for(const d of DRIVERS){
-      const{error:de}=await jrDB.from('drivers').upsert({id:d.id,name:d.name,username:d.username,password:d.password},{onConflict:'id'});
-      if(de) throw de;
-      await jrDB.from('vehicles').delete().eq('driver_id',d.id);
-      const rows=(d.vehicles||[]).map(v=>({id:v.id,driver_id:d.id,name:v.name,max_passengers:Number(v.max||1),fare:Number(v.fare||0),travel_hours:Number(v.travelHours||1)}));
-      if(rows.length){const{error:ve}=await jrDB.from('vehicles').insert(rows);if(ve)throw ve;}
-    }
+    const{error:de}=await jrDB.from('drivers').upsert(driverData,{onConflict:'id'});
+    if(de) throw de;
+    
+    await jrDB.from('vehicles').delete().eq('driver_id',newDriverId);
+    const rows=editorVehicles.map(v=>({id:v.id,driver_id:newDriverId,name:v.name,max_passengers:Number(v.max||1),fare:Number(v.fare||0),travel_hours:Number(v.travelHours||1)}));
+    if(rows.length){const{error:ve}=await jrDB.from('vehicles').insert(rows);if(ve)throw ve;}
+    
     await jrLoadDatabase();renderDrivers();toast('Driver saved','ok');
   }catch(err){toast('Save error: '+err.message,'err');}
   finally{showLoading(false);}
@@ -955,22 +961,40 @@ function jrSetAvailabilityPin(lat,lng,updatePlace){
   if(updatePlace){const place=document.getElementById('availPlace');if(place&&!place.value.trim())place.value='Map pin location ('+lat.toFixed(4)+', '+lng.toFixed(4)+')';}
   jrAvailMap.setView([lat,lng],Math.max(jrAvailMap.getZoom(),15));
 }
-function jrPickAvailabilityOnMap(){if(!jrAvailMap){jrInitAvailabilityMap();}setTimeout(()=>document.getElementById('availPickerMap')?.scrollIntoView({behavior:'smooth',block:'center'}),100);toast('Tap the map to place the vehicle pin','ok');}
+function jrPickAvailabilityOnMap(){
+  if(!jrAvailMap){jrInitAvailabilityMap();}
+  setTimeout(()=>document.getElementById('availPickerMap')?.scrollIntoView({behavior:'smooth',block:'center'}),100);
+  toast('Tap the map to place the vehicle pin','ok');
+}
 function jrUseAvailabilityGPS(){
   if(!navigator.geolocation){toast('GPS is not supported on this device','err');return;}
   if(!window.isSecureContext&&location.hostname!=='localhost'&&location.hostname!=='127.0.0.1'){toast('GPS needs HTTPS. Open the app using a secure HTTPS link.','err');return;}
   toast('Getting your current GPS location…','ok');
-  navigator.geolocation.getCurrentPosition(pos=>{if(!jrAvailMap)jrInitAvailabilityMap();setTimeout(()=>{jrSetAvailabilityPin(pos.coords.latitude,pos.coords.longitude,true);if(jrAvailMap)jrAvailMap.setView([pos.coords.latitude,pos.coords.longitude],16);},100);},err=>toast(err.code===1?'Allow location permission to use GPS':'Could not get GPS location. Try picking the map pin.','err'),{enableHighAccuracy:true,timeout:20000,maximumAge:10000});
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      if(!jrAvailMap)jrInitAvailabilityMap();
+      setTimeout(()=>{
+        jrSetAvailabilityPin(pos.coords.latitude,pos.coords.longitude,true);
+        if(jrAvailMap)jrAvailMap.setView([pos.coords.latitude,pos.coords.longitude],16);
+      },100);
+    },
+    err=>toast(err.code===1?'Allow location permission to use GPS':'Could not get GPS location. Try picking the map pin.','err'),
+    {enableHighAccuracy:true,timeout:20000,maximumAge:10000}
+  );
 }
 
 function jrInitCustomerAvailabilityMap(){
   const el=document.getElementById('customerAvailabilityMap');if(!el||!window.L)return;
   if(jrCustomerAvailMap){try{jrCustomerAvailMap.remove()}catch(e){}jrCustomerAvailMap=null;jrCustomerAvailMarkers=[];}
-  const rows=JR_AVAILABILITY.filter(x=>(x.is_available===true||x.is_available==='true')&&x.latitude!=null&&x.longitude!=null);if(!rows.length)return;
-  jrCustomerAvailMap=L.map(el).setView([Number(rows[0].latitude),Number(rows[0].longitude)],11);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(jrCustomerAvailMap);
-  const bounds=[];rows.forEach(x=>{
+  const rows=JR_AVAILABILITY.filter(x=>(x.is_available===true||x.is_available==='true')&&x.latitude!=null&&x.longitude!=null);
+  if(!rows.length)return;
+  jrCustomerAvailMap=L.map(el).setView([Number(rows[0].latitude),Number(rows[0].longitude)],11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(jrCustomerAvailMap);
+  const bounds=[];
+  rows.forEach(x=>{
     const lat=Number(x.latitude),lng=Number(x.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lng))return;
-    const v=getVehicle(x.vehicle_id),m=L.marker([lat,lng]).addTo(jrCustomerAvailMap);
+    const v=getVehicle(x.vehicle_id);
+    const m=L.marker([lat,lng]).addTo(jrCustomerAvailMap);
     m.bindPopup('<b>'+esc(x.vehicle_name||v?.name||'Vehicle')+'</b><br>'+esc(x.location||'Available vehicle')+'<br>Rs. '+Number(v?.fare||0).toLocaleString()+'<br><button onclick="bookAvailableVehicle(\''+esc(x.vehicle_id)+'\')" style="margin-top:8px;width:100%;background:#0878e8;color:#fff;border:0;padding:8px;border-radius:6px;font-weight:bold;cursor:pointer;">Book this vehicle</button>');
     jrCustomerAvailMarkers.push(m);bounds.push([lat,lng]);
   });
@@ -980,7 +1004,8 @@ function jrInitCustomerAvailabilityMap(){
 
 function jrInitAdminAvailabilityMap(){
   const el=document.getElementById('adminAvailabilityMap');if(!el||!window.L)return;
-  const rows=JR_AVAILABILITY.filter(x=>x.latitude!=null&&x.longitude!=null);if(!rows.length)return;
+  const rows=JR_AVAILABILITY.filter(x=>x.latitude!=null&&x.longitude!=null);
+  if(!rows.length)return;
   const map=L.map(el).setView([Number(rows[0].latitude),Number(rows[0].longitude)],11);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   const bounds=[];
@@ -1000,18 +1025,16 @@ function jrInitAdminAvailabilityMap(){
     bounds.push([lat,lng]);
   });
   if(bounds.length>1)map.fitBounds(bounds,{padding:[24,24]});
-  setTimeout(()=>{map.invalidateSize(); setTimeout(()=>map.invalidateSize(),500);},150);
+  setTimeout(()=>{map.invalidateSize();setTimeout(()=>map.invalidateSize(),500);},150);
 }
 
-// LIVE LOCATION CODE (Driver live tracking)
+// LIVE LOCATION
 function jrRenderLocationUI(){
   const role=currentUser?.role;
   const wrap=document.getElementById('fullMapWrap');
-  const statusBox=document.getElementById('fullMapStatusBox');
+  if(!role||!wrap) return;
   const statusText=document.getElementById('fullMapStatusText');
   const statusDot=document.getElementById('fullMapDot');
-  if(!role||!wrap) return;
-
   if(role==='driver'){
     statusText.textContent='Location starts automatically when you Start a Ride.';
     statusDot.className='statusDot warn';
@@ -1022,65 +1045,61 @@ function jrRenderLocationUI(){
     statusText.textContent='When your driver shares location, it appears here.';
     statusDot.className='statusDot';
   }
-  
   jrEnsureMap();
   jrSubscribeLocations();
-  
-  if(role==='admin' || role==='customer') {
-    jrLoadLiveLocations();
-  }
+  if(role==='admin' || role==='customer') jrLoadLiveLocations();
 }
 
 function jrSetLocationStatus(msg,cls){
   const statusText=document.getElementById('fullMapStatusText');
   const statusDot=document.getElementById('fullMapDot');
   if(statusText) statusText.textContent=msg;
-  if(statusDot) {
-    if(cls==='ok') statusDot.className='statusDot ok';
-    else if(cls==='err') statusDot.className='statusDot err';
-    else statusDot.className='statusDot';
-  }
+  if(statusDot) statusDot.className=cls==='ok'?'statusDot ok':cls==='err'?'statusDot err':'statusDot';
 }
 
 function jrEnsureMap(){
   if(!window.L) return;
   const el=document.getElementById('jrLiveMap');
   if(!el) return;
-  
   delete L.Icon.Default.prototype._getIconUrl;
   L.Icon.Default.mergeOptions({
     iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
     iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
     shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
   });
-
   if(jrMap){try{jrMap.remove()}catch(e){}}
-  jrMap=L.map(el, {zoomControl: false}).setView(JR_MAP_DEFAULT,10);
+  jrMap=L.map(el,{zoomControl:false}).setView(JR_MAP_DEFAULT,10);
   L.control.zoom({position:'bottomright'}).addTo(jrMap);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(jrMap);
-  setTimeout(()=>{ if(jrMap){ jrMap.invalidateSize(); setTimeout(()=>jrMap.invalidateSize(), 500); } }, 200);
+  setTimeout(()=>{if(jrMap){jrMap.invalidateSize();setTimeout(()=>jrMap.invalidateSize(),500);}},200);
 }
 
 function jrIcon(h){
-  h = h || 0;
+  h = Number(h)||0;
   return L.divIcon({
     className: 'custom-car-icon',
-    html: '<div class="carMarker" style="transform:rotate(' + Number(h) + 'deg)"><span>🚗</span></div>',
+    html: '<div class="carMarker" style="transform:rotate(' + h + 'deg)"><span>🚗</span></div>',
     iconSize: [44, 44],
     iconAnchor: [22, 22]
   });
 }
 
 async function jrLoadLiveLocations(){
-  if(!jrMap||!window.jrDB||!currentUser)return;
+  if(!jrMap || !jrDB || !currentUser) return;
   try{
-    const{data,error}=await jrDB.from('driver_locations').select('*').eq('active',true);
-    if(error)throw error;
+    const {data,error}=await jrDB.from('driver_locations').select('*').eq('active',true);
+    
+    // FIX: Silently ignore DB errors for admin/customer
+    if(error) {
+      console.warn("Location fetch error:", error.message);
+      jrSetLocationStatus('No active locations available.', 'warn');
+      return;
+    }
+
     let rows=data||[];
-    
-    const now = Date.now();
-    rows = rows.filter(x => (now - new Date(x.updated_at || 0).getTime()) < 15 * 60 * 1000);
-    
+    const now=Date.now();
+    rows=rows.filter(x=>(now-new Date(x.updated_at||0).getTime())<15*60*1000);
+
     if(currentUser.role==='customer'){
       const filterDate=document.getElementById('customerDateFilter')?.value||'';
       const mine=customerBookings().filter(x=>!['cancelled','rejected','completed'].includes(x.status)&&x.driverId&&(!filterDate||x.date===filterDate));
@@ -1088,91 +1107,78 @@ async function jrLoadLiveLocations(){
       rows=rows.filter(x=>ids.has(String(x.driver_id)));
     }
     if(currentUser.role==='driver') rows=rows.filter(x=>String(x.driver_id)===String(currentUser.driverId));
-    
-    const activeIds = new Set();
-    
+
+    const activeIds=new Set();
     if(!rows.length){
-      Object.keys(jrLocationMarkers).forEach(id => {
-        try{ jrMap.removeLayer(jrLocationMarkers[id]); }catch(e){}
-        delete jrLocationMarkers[id];
-      });
+      Object.keys(jrLocationMarkers).forEach(id=>{try{jrMap.removeLayer(jrLocationMarkers[id])}catch(e){}delete jrLocationMarkers[id];});
       jrSetLocationStatus(currentUser.role==='customer'?'No driver sharing location yet.':'No active locations.','warn');
       return;
     }
-    
+
     const bounds=[];
     rows.forEach(x=>{
       const lat=Number(x.latitude),lng=Number(x.longitude);
       if(!Number.isFinite(lat)||!Number.isFinite(lng))return;
-      
-      const driverIdStr = String(x.driver_id);
+      const driverIdStr=String(x.driver_id);
       activeIds.add(driverIdStr);
-      
       const d=getDriver(driverIdStr)||getDriver(Number(driverIdStr));
       const name=d?.name||('Driver '+driverIdStr);
-      
-      let m = jrLocationMarkers[driverIdStr];
+      let m=jrLocationMarkers[driverIdStr];
       if(m){
         m.setLatLng([lat,lng]);
         m.setIcon(jrIcon(Number(x.heading||0)));
       } else {
-        m = L.marker([lat,lng],{icon:jrIcon(Number(x.heading||0))}).addTo(jrMap);
+        m=L.marker([lat,lng],{icon:jrIcon(Number(x.heading||0))}).addTo(jrMap);
         m.bindPopup('<b>🚗 '+esc(name)+'</b>');
-        jrLocationMarkers[driverIdStr] = m;
+        jrLocationMarkers[driverIdStr]=m;
       }
       bounds.push([lat,lng]);
     });
-    
-    Object.keys(jrLocationMarkers).forEach(id => {
-      if(!activeIds.has(id)){
-        try{ jrMap.removeLayer(jrLocationMarkers[id]); }catch(e){}
-        delete jrLocationMarkers[id];
-      }
+
+    Object.keys(jrLocationMarkers).forEach(id=>{
+      if(!activeIds.has(id)){try{jrMap.removeLayer(jrLocationMarkers[id])}catch(e){}delete jrLocationMarkers[id];}
     });
-    
+
     if(bounds.length===1) jrMap.setView(bounds[0],14);
     else if(bounds.length) jrMap.fitBounds(bounds,{padding:[30,30],maxZoom:14});
-    
+
     jrSetLocationStatus(rows.length+' active driver location'+(rows.length>1?'s':'')+' on map.','ok');
-  }catch(err){console.error(err);jrSetLocationStatus('DB error: '+err.message,'err');}
+  }catch(err){
+    console.warn(err);
+    jrSetLocationStatus('Could not load locations.', 'warn');
+  }
 }
 
 async function jrStartLiveLocation(){
-  if(!currentUser || currentUser.role!=='driver' || !currentUser.driverId){ toast('Driver login required','err'); return; }
+  if(!currentUser || currentUser.role!=='driver' || !currentUser.driverId){toast('Driver login required','err');return;}
   if(!window.isSecureContext&&location.hostname!=='localhost'&&location.hostname!=='127.0.0.1'){jrSetLocationStatus('🔒 HTTPS required for GPS','err');return toast('Needs HTTPS','err');}
   if(!navigator.geolocation)return toast('GPS not supported','err');
-  
+
   if(jrLocationWatch!==null)navigator.geolocation.clearWatch(jrLocationWatch);
   jrSetLocationStatus('Requesting location permission…','warn');
-  
+
   jrLocationWatch=navigator.geolocation.watchPosition(async p=>{
     try{
       const active=(B||[]).filter(x=>String(x.driverId)===String(currentUser.driverId)&&['assigned','started'].includes(x.status)).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))[0];
       const heading=Number.isFinite(Number(p.coords.heading))?Number(p.coords.heading):0;
       const row={driver_id:String(currentUser.driverId),latitude:p.coords.latitude,longitude:p.coords.longitude,accuracy:Number(p.coords.accuracy||0),heading,active:true,booking_id:active?Number(active.id):null,updated_at:new Date().toISOString()};
-      
-      const{error}=await jrDB.from('driver_locations').upsert(row,{onConflict:'driver_id'});
-      if(error)throw error;
-      
+      const {error}=await jrDB.from('driver_locations').upsert(row,{onConflict:'driver_id'});
+      if(error) throw error;
       jrSetLocationStatus('🟢 Sharing ON · '+Math.round(p.coords.accuracy||0)+' m','ok');
       jrEnsureMap();
-      
       const old=jrLocationMarkers[String(currentUser.driverId)];
-      if(old){
-        old.setLatLng([p.coords.latitude,p.coords.longitude]);
-        old.setIcon(jrIcon(heading));
-      } else {
-        const m = L.marker([p.coords.latitude, p.coords.longitude], {icon: jrIcon(heading)}).addTo(jrMap);
-        m.bindPopup('<b>🚗 ' + esc(currentUser.name) + '</b>');
-        jrLocationMarkers[String(currentUser.driverId)] = m;
+      if(old){old.setLatLng([p.coords.latitude,p.coords.longitude]);old.setIcon(jrIcon(heading));}
+      else{
+        const m=L.marker([p.coords.latitude,p.coords.longitude],{icon:jrIcon(heading)}).addTo(jrMap);
+        m.bindPopup('<b>🚗 '+esc(currentUser.name)+'</b>');
+        jrLocationMarkers[String(currentUser.driverId)]=m;
       }
-      
-      if(!jrMap._userZoomed) {
-        jrMap.setView([p.coords.latitude, p.coords.longitude], 15);
-        jrMap._userZoomed = true;
-      }
+      if(!jrMap._userZoomed){jrMap.setView([p.coords.latitude,p.coords.longitude],15);jrMap._userZoomed=true;}
     }catch(err){console.error(err);jrSetLocationStatus('DB error: '+err.message,'err');}
-  },err=>{const msg=err.code===1?'❌ Permission denied':err.code===2?'📍 Location unavailable':'⏱️ Timed out';jrSetLocationStatus(msg,'err');},{enableHighAccuracy:true,maximumAge:3000,timeout:20000});
+  },err=>{
+    const msg=err.code===1?'❌ Permission denied':err.code===2?'📍 Location unavailable':'⏱️ Timed out';
+    jrSetLocationStatus(msg,'err');
+  },{enableHighAccuracy:true,maximumAge:3000,timeout:20000});
 }
 
 async function jrStopLiveLocation(){
@@ -1187,19 +1193,21 @@ async function jrStopLiveLocation(){
 }
 
 function jrSubscribeLocations(){
-  if(jrLocationChannel)return;
-  jrLocationChannel=jrDB.channel('jr-driver-location-live').on('postgres_changes',{event:'*',schema:'public',table:'driver_locations'},()=>jrLoadLiveLocations()).subscribe();
+  if(jrLocationChannel||!jrDB)return;
+  jrLocationChannel=jrDB.channel('jr-driver-location-live')
+    .on('postgres_changes',{event:'*',schema:'public',table:'driver_locations'},()=>jrLoadLiveLocations())
+    .subscribe();
 }
 
-window.addEventListener('beforeunload', (e) => {
+window.addEventListener('beforeunload',()=>{
   if(currentUser?.role==='driver' && currentUser.driverId){
-    jrDB.from('driver_locations').update({active:false, updated_at:new Date().toISOString()}).eq('driver_id', String(currentUser.driverId));
+    jrDB.from('driver_locations').update({active:false,updated_at:new Date().toISOString()}).eq('driver_id',String(currentUser.driverId));
   }
 });
 
-document.addEventListener('visibilitychange', () => {
-  if(document.visibilityState === 'visible' && currentUser?.role==='driver' && jrLocationWatch !== null && currentUser.driverId){
-    jrDB.from('driver_locations').update({active:true, updated_at:new Date().toISOString()}).eq('driver_id', String(currentUser.driverId));
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible' && currentUser?.role==='driver' && jrLocationWatch!==null && currentUser.driverId){
+    jrDB.from('driver_locations').update({active:true,updated_at:new Date().toISOString()}).eq('driver_id',String(currentUser.driverId));
     jrLoadLiveLocations();
   }
 });
